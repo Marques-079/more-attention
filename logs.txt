@@ -1,0 +1,151 @@
+Yo. Gurt# content-farm
+
+https://docs.google.com/spreadsheets/d/1RcHceMIefviOBGx2nf0dIr5dLvdt_08t34idq9XpAfI/edit?gid=0#gid=0 -> reference resouces on my drive
+
+
+
+
+NLP for trends automated pipeline for content creation
+
+28/08
+On platforms I can expect a pessimistic 0.03 per 1000 views.
+Different to my intial approaches on makign channels can we automate the entire content creation process and win views by pure scale
+Optimise market research, trends, timings and use custom trained models (not sure yet) and pipeloiens to create and post content conistently 
+
+Although this isnt much if we x50 channels the total adds up. 
+That being said would we oversaturate the market with our own content and what are the risks of getting shadow banned etc...
+
+
+31/08/25
+
+We could try for longer form infographic style hypothetical videos 
+eg.
+https://www.youtube.com/watch?v=HZZMsaSmzuU 
+
+Target longer form content too? Fully automated processing tier lists?
+-Top 5 biggest gunships in retro anime (transformative enough?)
+-Top 10 hidden military bunks we know etc. 
+- Reading posts of reddit social media funny + background content auto gend @BlobbyClips
+- Would you rather? etcect fake scencarios
+- AI what place would you sleep in trend 
+ Top 5  moments instagram style. IUnexpected edits, Celebertiy moments
+- Long form, but trends aka stupid gen A kids brainrot
+- Compartive / Superlative Most, Least, Worst. Best scenes etc
+- Lyrics with rhyme overlays + artist 
+- Artist concert with lyrics infront aesththic 
+- Your month your ...
+
+https://elevenlabs.io/?utm_source=chatgpt.com - For ai voices looks like the best so far
+
+
+Overall plan :
+x10 youtube channels
+1) Each channel has a targeted niche or style of content 
+2) Depending on style of video content can be generated through different ways 
+    - easiest to start is likely scrapping Lock target niche for sotry ->Scrape reddit/forurms -> Script making + auto editing
+3) I can personally moderate vids (inforgrpahics can be gifs? ai generated? Webscraped?)
+4) Automated or Me can post pipeline to a plethora of channels depending on niche
+
+Aim: 
+Hit the algorithm with scale, double down on what gets traction, expand
+
+Stage analysis:
+1) Intial start I will personally reserach and decide on style & themes however I should look to automate the process heavily using 
+- NLP agents scanning of pulled data 
+- ML models scanning over recent trends and breakthoughs in style and topics -> Side note: Can we map out growth before it happens in topics/trends aka semantic topics gain popularity before a break, or continualed trend growth -> Apply stock pricing principles to forecasrt traffic (high end)
+- Take inspiration from others, 
+
+2) Scraping reddit forms looking for matches to popular stories, weight crowd proven stories higher for content. Our generate our scripts VIA Ai questions (strong propmpting requried to not come off as BOT/AI) or genuliy interesting question I can find online (clicks)
+
+- Auto editing is tricky. Can use openAI api calls/intelligent script placement to insert captions. 
+- hmm Alternatively I could streamline the manual pick insert process using screen captures etc (careful of rates due to low earnings PV)
+
+3) Moderation.
+4) Auto posting pipeline? Hardcoded pyautogui should work for this. 
+
+
+YOUTUBE EXAMPLES:
+
+@RedditFamilyTales (bad example but good outcome)
+@QuizKingdomYT (engaging questions/quizes angled toward kids?)
+@JoeViteReal - Classic content I tried before good potential need audience
+@Rolledupreddit - reddit into short forn
+Reposted instagram -> Yt shorts? 
+@actorevolutionn - ai transitions but actors at film vs present time
+@joe_caine - Ultra fast short content + very fast explanation vc x5 per vid 
+
+@Mando266 -> Very good example long form but higher views -> Low effot -> Can I do myself how should I approach 
+@gurtyoreal -> Also good "tuff posts getting cooked by comments"
+
+@SkyShow1 -> Not monetized why>!
+
+
+@artificialcheese -> Full on AI generated videos vlogs etc
+
+Simple Edit Process example 
+https://www.youtube.com/shorts/K3gLOqnSRxk 
+
+
+@JasperStorm -> content exactly like this
+@MediaConquer and @dailydoseofinternet style content
+
+
+WOAH- a lot of these big channels arent monetzed.. why -> ones we found which were
+https://www.youtube.com/@QuizKingdomYT 
+https://www.youtube.com/@RedditFamilyTales/videos - Reddit PMO legit just satifdying vid + subittiles + scraped vid = $$ !!!
+@actorevolutionn - Actors 
+@joe_caine - Speed run shorts 
+@Mando266 - Memes
+https://www.youtube.com/@ALaughADay123/videos - Memes
+https://www.youtube.com/@M1sterMeow - RANKING CHANNEL _> seems like this niche is aevrage monetizable?
+@fantasyfoxmemes - Memes 
+@MR_AI_Creatorr - AI junk but monetized somehow
+
+https://www.youtube.com/watch?v=OBl6n6ECVUA - Longer form inforgraphoc
+
+Ai Voice overs over real films/content funny
+
+
+
+
+Takeaway : Cant be clipping and doing VOs it needs to be original, long form is better most cases
+
+
+Can use Youtube Data API
+
+
+
+FACEBOOK
+
+
+X
+
+
+Snapchat
+
+
+
+TIKTOK - Urgent : No work around to geographic location issues
+
+30/8
+Starting with real life + voice over content auto pipeline. 
+Fine tune open source model to make "good captions" trained on many onlien scraped funny captions -> good prpompting too
+
+
+AI generated music soudns excpetionally good and you cant tell. Mixed with good covers can be very good 
+-look into cost pricing of generators + what makes us stad out from the rest (provactive thumbnials?!)
+
+
+1/9/25
+
+I think I shouldnt think too hard into research on whats popular, predicting upcoming niches
+Data too scarce as of now a better approach is to make efficient automated pipelines and then **double down on what sticks**
+
+
+Starting on easiest to automate and pipeline -> reddit stories. 
+basic template running -> nice background -> decently enternating subttitles + Ai voice over -> auto edit post to youtube 
+https://notegpt.io/text-to-speech?utm_source=chatgpt.com (man with deep voice)
+
+Background I can use:
+Subway Surfers 
+Minecraft Parkour
