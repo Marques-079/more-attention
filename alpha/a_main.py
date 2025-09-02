@@ -14,7 +14,6 @@ from voice import compile_audio
 text = '''
 Throwaway because my IRL circle knows my main - and this is the kind of thing you don’t get to unsay once it’s out there. Ages for context: me 36F - ex-husband 38M (let’s call him "Mark"), former friend 36F ("Lena"). And no - I don’t need legal advice; the divorce papers are signed and collecting dust in a folder I can’t quite bring myself to shred. What I need - apparently-  is to figure out when the floor disappeared from under me — and whether I’m the only one who heard the thud.
 
-
 '''
 
 #Convert text to speech (audio wav + duration seconds)
@@ -32,6 +31,7 @@ target_name_audio = file_path.name               # e.g. "voice_20250902_141530.w
 
 print(target_name_audio)
 
-make_edits(1, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
+export_title = make_edits(4, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
+print(export_title)
 
 

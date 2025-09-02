@@ -6,6 +6,8 @@ from pathlib import Path
 import pyautogui
 import platform
 import math
+import re
+from datetime import datetime
 
 media_options = [(459, 238), (255,358), (453, 357), (253, 478), (453, 475)]
 
@@ -150,8 +152,98 @@ def adjust_clip_duration(audio_duration):
     pyautogui.press("enter", presses = 2) #Complete cropping to audio length
     return
 
-import subprocess
-from pathlib import Path
+#================================================================Typing and saving functions=================================================================
+def _slug(s: str) -> str:
+    s = re.sub(r"\s+", "_", str(s).strip())
+    return re.sub(r"[^A-Za-z0-9_.-]", "", s)
+
+def build_timestamp_title(base: str,
+                          duration_sec: float | int | None = None,
+                          channel: str | None = None,
+                          extra: str | None = None,
+                          max_len: int = 64) -> str:
+    """
+    Make a unique, filesystem-safe title like:
+      2025-09-03_23-41-12_My_Video_29s_main
+    - base: human name for the video
+    - duration_sec/channel/extra: optional bits to encode
+    - max_len: clamp length to keep UI happy
+    """
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    parts = [ts, _slug(base)]
+    if duration_sec is not None:
+        parts.append(f"{int(round(float(duration_sec)))}s")
+    if channel:
+        parts.append(_slug(channel))
+    if extra:
+        parts.append(_slug(extra))
+    name = "_".join(p for p in parts if p)
+    if len(name) > max_len:
+        name = name[:max_len].rstrip("_")
+    return name
+
+def type_export_title(title: str, key_interval: float = 0.02) -> None:
+    """Types the given title into the currently focused text box."""
+    pyautogui.typewrite(title, interval=key_interval)
+
+#=========== Navigate to folder in exposed dialog =========== 
+
+def navigate_open_dialog_to_folder(dir_path: str):
+    p = Path(dir_path).expanduser().resolve()
+    if not p.exists():
+        raise FileNotFoundError(p)
+
+    ascript = f'''
+    set appName to "{APP_NAME}"
+    set targetDir to POSIX path of "{p.as_posix()}"
+
+    tell application appName to activate
+    delay 0.1
+    tell application "System Events"
+        -- Open "Go to the folder" in the NSOpenPanel
+        keystroke "g" using {{command down, shift down}}
+        delay 0.15
+        keystroke targetDir
+        keystroke return
+    end tell
+    '''
+    subprocess.run(["osascript", "-e", ascript], check=False)
+
+#=========================================================================#=========================================================================
+from pathlib import Path  # kept for type hint compatibility
+import pyautogui
+
+def area_has_color_match(x: int, y: int,
+                         target_rgba=(86, 231, 199, 255),
+                         tol: float = 0.05,
+                         size: int = 30):
+    """
+    Returns True if ANY pixel in a size×size area centered at (x, y)
+    is within per-channel tolerance of target_rgba. Silent (no prints, no saves).
+    """
+    half = size // 2
+    left, top = int(x - half), int(y - half)
+
+    # Grab the region (no saving)
+    img = pyautogui.screenshot(region=(left, top, size, size)).convert("RGBA")
+
+    # Color match check
+    thr = int(round(255 * tol))
+    tr, tg, tb, ta = (tuple(target_rgba) + (255,))[:4]
+
+    w, h = img.size
+    for iy in range(h):
+        for ix in range(w):
+            r, g, b, a = img.getpixel((ix, iy))
+            if (abs(r - tr) <= thr and
+                abs(g - tg) <= thr and
+                abs(b - tb) <= thr and
+                abs(a - ta) <= thr):
+                return True
+    return False
+#=========================================================================#=========================================================================
+
+
 
 APP_NAME = "Wondershare Filmora Mac"
 
@@ -291,26 +383,31 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     end_x1, end_y1     = 225, 785  
 
     pyautogui.moveTo(media_x, media_y, duration=0.15)  # hover to start
-    time.sleep(0.05)
+    time.sleep(0.15)
     pyautogui.mouseDown(button="left")                 # press & hold
-    pyautogui.moveTo(end_x1, end_y1, duration=0.25)      # drag while holding
+    pyautogui.moveTo(end_x1, end_y1, duration=0.25)
+    time.sleep(0.15)      # drag while holding
     pyautogui.mouseUp(button="left")                   # release
 
     """Adjust duration to fit audio clip"""
 
     #Move to extra options above timeline
     pyautogui.moveTo(520,600)
+    time.sleep(0.3)
     pyautogui.leftClick()
 
     #Click into duration editor
-    pyautogui.moveTo(520,633)
+    pyautogui.moveTo(520,655)
+    time.sleep(0.3)
     pyautogui.leftClick()
 
     #Enter time adjustment window
     pyautogui.moveTo(764, 439)
+    time.sleep(0.3)
     pyautogui.leftClick()
 
     #Adjust clip duration to audio length
+    time.sleep(0.3)
     adjust_clip_duration(audio_duration)
 
     #Import audio clip
@@ -332,13 +429,101 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.mouseDown(button="left")                 # press & hold
     pyautogui.moveTo(end_x2, end_y2, duration=0.25)      # drag while holding
     pyautogui.mouseUp(button="left")                   # release
-    #Add subtitles
 
+    #Mute sound for gameplay background
+    time.sleep(1.50)
+    pyautogui.moveTo(48, 795)
+    pyautogui.leftClick()
+
+    #Save and prepare for subtitle prep.
+    pyautogui.moveTo(1445, 56)
+    pyautogui.leftClick()
+
+    #Change name
+    time.sleep(0.5)
+    pyautogui.moveTo(695, 272)
+    pyautogui.click(clicks=2, interval=0.12, button="left")
+    time.sleep(0.5)
+    pyautogui.hotkey("command", "a")
+    time.sleep(0.5)
+    pyautogui.press("backspace")
+
+    export_title = build_timestamp_title(base="My Video")
+    time.sleep(0.5)
+    type_export_title(export_title)
+
+    #AS navigate pathing for save 
+    #/Users/marcus/Downloads/reddit1_filmora_clipstore
+    pyautogui.click(1077,330)
+    time.sleep(0.1)
+
+    navigate_open_dialog_to_folder("/Users/marcus/Downloads/reddit1_filmora_clipstore")
+
+    pyautogui.move(1153, 606)
+    time.sleep(2.0)
+    pyautogui.leftClick(1153, 606) 
+
+    #Maximise resolution quality set to high
+
+    pyautogui.moveTo(906, 585)
+    time.sleep(0.5)
+    pyautogui.leftClick(906, 585)
+
+    pyautogui.moveTo(909, 690)
+    time.sleep(0.5)
+    pyautogui.leftClick(909, 690)
+
+    '''
+    Insert here to boost resolution -> Inflates storage
+    '''
+
+
+    #here!
+
+
+    ''''''
     
+    #Disable saving any previews (Update: I think it hold state between projects) 
+    # time.sleep(0.1)
+    # pyautogui.click(679, 714)
 
-    #Edit and finalise subtitles
+    #Export
+    pyautogui.moveTo(1092, 788)
+    time.sleep(0.5)
+    pyautogui.leftClick(1092, 788)
 
-    #Share and save
+    #Checking until export is finished exporting LOL
+  
+    time.sleep(2)
+    while True:
+        has_match = area_has_color_match(427, 506)   # saves into ./captures/
 
-    #Exit program
-    
+        print(f"[watch] match={has_match}")
+        if has_match:
+            time.sleep(2.0)
+            continue
+        break
+
+    pyautogui.moveTo(359, 244)
+    time.sleep(1.0)
+    pyautogui.leftClick(359, 244)
+
+    #Exit program without saving
+    #hit file button
+    pyautogui.moveTo(221, 16)
+    time.sleep(0.5)
+    pyautogui.leftClick(221, 16)
+
+    #hit return home button
+    pyautogui.moveTo(220, 429)
+    time.sleep(0.5)
+    pyautogui.leftClick(220, 429)
+
+    #"Dont save"
+    pyautogui.moveTo(921, 529)
+    time.sleep(0.5)
+    pyautogui.leftClick(921, 529)
+
+
+    return export_title
+
