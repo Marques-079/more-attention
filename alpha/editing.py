@@ -334,6 +334,8 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.mouseUp(button="left")                   # release
     #Add subtitles
 
+    
+
     #Edit and finalise subtitles
 
     #Share and save

@@ -11,7 +11,11 @@ from voice import compile_audio
 # with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/1text.txt", "r", encoding="utf-8") as f:
 #   text = f.read()
 
-text = "Its a great day to win isn't is Sir?"
+text = '''
+Throwaway because my IRL circle knows my main - and this is the kind of thing you don’t get to unsay once it’s out there. Ages for context: me 36F - ex-husband 38M (let’s call him "Mark"), former friend 36F ("Lena"). And no - I don’t need legal advice; the divorce papers are signed and collecting dust in a folder I can’t quite bring myself to shred. What I need - apparently-  is to figure out when the floor disappeared from under me — and whether I’m the only one who heard the thud.
+
+
+'''
 
 #Convert text to speech (audio wav + duration seconds)
 wav_bytes, duration_sec = compile_audio(text)
