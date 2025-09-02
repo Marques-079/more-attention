@@ -149,3 +149,8 @@ https://notegpt.io/text-to-speech?utm_source=chatgpt.com (man with deep voice)
 Background I can use:
 Subway Surfers 
 Minecraft Parkour
+
+2/8/25
+
+TODO:
+Make the background pull call rnadom and pull from a folder with a random offset

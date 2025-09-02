@@ -19,6 +19,7 @@ def compile_audio(text):
             f.write(np.asarray(audio, dtype="float32"))
 
     buf.seek(0)
+    duration_sec = sf.info(buf).duration
     wav_bytes = buf.getvalue()
     print("Audio compiled")
-    return wav_bytes
+    return wav_bytes, duration_sec
