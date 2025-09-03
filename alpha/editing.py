@@ -8,8 +8,12 @@ import platform
 import math
 import re
 from datetime import datetime
+import math, random
+from typing import Optional, Tuple
 
+#media_options = | (0,1), (1, 0), (1, 1), (2, 0), (2, 1)
 media_options = [(459, 238), (255,358), (453, 357), (253, 478), (453, 475)]
+clip_durations= [7226, 4577, 4813, 3600, 1313]
 
 APP_PATH = "/Applications/Wondershare Filmora Mac.app"
 APP_NAME = "Wondershare Filmora Mac"
@@ -210,9 +214,6 @@ def navigate_open_dialog_to_folder(dir_path: str):
     subprocess.run(["osascript", "-e", ascript], check=False)
 
 #=========================================================================#=========================================================================
-from pathlib import Path  # kept for type hint compatibility
-import pyautogui
-
 def area_has_color_match(x: int, y: int,
                          target_rgba=(86, 231, 199, 255),
                          tol: float = 0.05,
@@ -241,8 +242,93 @@ def area_has_color_match(x: int, y: int,
                 abs(a - ta) <= thr):
                 return True
     return False
-#=========================================================================#=========================================================================
 
+def pick_random_crop_start(
+    duration: float,
+    clip_total: float,
+    buffer_s: float = 60.0,
+    integer_seconds: bool = False,
+    rng: Optional[random.Random] = None,
+) -> Tuple[float, str]:
+    if duration <= 0 or clip_total <= 0:
+        raise ValueError("duration and clip_total must be > 0.")
+    if duration + 2 * buffer_s > clip_total:
+        raise ValueError("clip_total too short for duration + buffers.")
+
+    # honor the buffer you pass (don't hardcode 5)
+    start_min = buffer_s
+    start_max = clip_total - buffer_s - duration
+    if start_max < start_min:
+        raise ValueError("No start position fits the constraints.")
+
+    r = rng or random  # use provided RNG or module RNG (no reseeding)
+
+    if integer_seconds:
+        imin = math.ceil(start_min)
+        imax = math.floor(start_max)
+        if imax < imin:
+            raise ValueError("No integer start fits the constraints.")
+        start = float(r.randrange(imin, imax + 1))
+    else:
+        start = r.uniform(start_min, start_max)
+
+    return start, _to_timecode(start)
+
+def _to_timecode(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:06.3f}"
+
+
+#============================================Random scrolling to stagger start=====================================================================
+import time, platform, pyautogui
+
+pyautogui.FAILSAFE = True
+
+def mac_hscroll_pixels(delta_x_px: int, bursts: int = 1, pause: float = 0.0):
+    """
+    Send horizontal scroll in pixel units on macOS using Quartz.
+    """
+    from Quartz import (
+        CGEventCreateScrollWheelEvent, CGEventPost,
+        kCGHIDEventTap, kCGScrollEventUnitPixel
+    )
+    ev = CGEventCreateScrollWheelEvent(
+        None, kCGScrollEventUnitPixel, 2, 0, int(delta_x_px)
+    )
+    CGEventPost(kCGHIDEventTap, ev)
+    if pause:
+        time.sleep(pause)
+
+def scroll_left_incremental(start=(500, 700), pixels=114, steps=5, pause=0.01):
+    """
+    Focus the timeline, then scroll left in fixed increments.
+    Each step = `pixels`. Run fast with tiny pauses.
+    """
+    # 1) Focus the timeline
+    pyautogui.moveTo(*start)
+    pyautogui.click()
+    time.sleep(0.05)
+
+    if platform.system() == "Darwin":
+        for _ in range(steps):
+            mac_hscroll_pixels(-abs(pixels))
+            time.sleep(pause)
+    else:
+        # fallback drag for non-macOS
+        thumb_x, thumb_y = start[0] + 400, start[1] + 320
+        pyautogui.moveTo(thumb_x, thumb_y)
+        pyautogui.mouseDown(button='left')
+        for _ in range(steps):
+            pyautogui.moveRel(-abs(pixels), 0, duration=0.05)
+            time.sleep(pause)
+        pyautogui.mouseUp(button='left')
+
+    # 3) Return to starting position
+    pyautogui.moveTo(*start)
+
+#==========================================================================================================================================
 
 
 APP_NAME = "Wondershare Filmora Mac"
@@ -389,6 +475,40 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     time.sleep(0.15)      # drag while holding
     pyautogui.mouseUp(button="left")                   # release
 
+    time.sleep(3.0)
+
+    "Random cropping to starttime + offset"
+    rng = random.SystemRandom()
+    start_s, tc = pick_random_crop_start(duration=audio_duration, clip_total=clip_durations[media_to_use], buffer_s = 60, integer_seconds=True,rng = rng)
+    print(f"Picked start time: {start_s:.3f} s = {tc}")
+    start_s = math.floor(start_s // 5) - 1
+
+    #Pixels 114 -> 5 seconds move around
+    time.sleep(2.0)
+    scroll_left_incremental(start=(500, 700), pixels=114 * start_s, steps=start_s, pause=0.0005)
+
+    #Crop here wit offset
+    time.sleep(2.0)
+    pyautogui.moveTo(213, 637)  # hover to start
+    pyautogui.leftClick()
+
+    #Cut 
+    time.sleep(2.0)
+    pyautogui.moveTo(214, 700)  # hover to start
+    pyautogui.leftClick()
+
+    #Delete
+    time.sleep(2.0)
+    pyautogui.moveTo(156, 754)  # hover to start
+    pyautogui.leftClick()
+    pyautogui.hotkey("backspace")
+
+    #Reselect clip so we can edit duration -> Reselecting
+    time.sleep(1.0)
+    pyautogui.moveTo(115, 758)
+    pyautogui.leftClick()
+
+
     """Adjust duration to fit audio clip"""
 
     #Move to extra options above timeline
@@ -402,7 +522,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.leftClick()
 
     #Enter time adjustment window
-    pyautogui.moveTo(764, 439)
+    pyautogui.moveTo(749, 413)
     time.sleep(0.3)
     pyautogui.leftClick()
 
@@ -410,7 +530,8 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     time.sleep(0.3)
     adjust_clip_duration(audio_duration)
 
-    #Import audio clip
+    """Rescoll to realign after random clip cropping"""
+    scroll_left_incremental(start=(500, 700), pixels=114 * start_s, steps=start_s, pause=0.0005)
 
     #Move mouse to prject relevant area zone
     time.sleep(2.0)
@@ -420,10 +541,10 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     print('Working on importing audio')
     import_audio_clip(target_dir_audio, target_name_audio)
     time.sleep(2.0)
-    pyautogui.leftClick(1096, 702)
+    pyautogui.leftClick(1096, 675)
 
-    #Add audio clip to timeline
-    end_x2, end_y2 = 84, 847
+    """Add audio clip to timeline"""
+    end_x2, end_y2 = 88, 822
 
     pyautogui.moveTo(450, 265, duration=0.2)  # hover to start
     time.sleep(0.05)
@@ -432,8 +553,8 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.mouseUp(button="left")                   # release
 
     #Mute sound for gameplay background
-    time.sleep(1.50)
-    pyautogui.moveTo(48, 795)
+    time.sleep(3.0)
+    pyautogui.moveTo(48, 769)
     pyautogui.leftClick()
 
     #Save and prepare for subtitle prep.
@@ -442,7 +563,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     #Change name
     time.sleep(0.5)
-    pyautogui.moveTo(695, 272)
+    pyautogui.moveTo(695, 247)
     pyautogui.click(clicks=2, interval=0.12, button="left")
     time.sleep(0.5)
     pyautogui.hotkey("command", "a")
@@ -455,24 +576,24 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     #AS navigate pathing for save 
     #/Users/marcus/Downloads/reddit1_filmora_clipstore
-    pyautogui.click(1077,330)
+    pyautogui.click(1077,305)
     time.sleep(0.1)
 
     navigate_open_dialog_to_folder("/Users/marcus/Downloads/reddit1_filmora_clipstore")
 
-    pyautogui.move(1153, 606)
+    pyautogui.move(1153, 582)
     time.sleep(2.0)
-    pyautogui.leftClick(1153, 606) 
+    pyautogui.leftClick(1153, 582) 
 
     #Maximise resolution quality set to high
 
-    pyautogui.moveTo(906, 585)
+    pyautogui.moveTo(906, 560)
     time.sleep(0.5)
-    pyautogui.leftClick(906, 585)
+    pyautogui.leftClick(906, 560)
 
-    pyautogui.moveTo(909, 690)
+    pyautogui.moveTo(909, 661)
     time.sleep(0.5)
-    pyautogui.leftClick(909, 690)
+    pyautogui.leftClick(909, 661)
 
     '''
     Insert here to boost resolution -> Inflates storage
@@ -489,15 +610,20 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     # pyautogui.click(679, 714)
 
     #Export
-    pyautogui.moveTo(1092, 788)
+    pyautogui.moveTo(1092, 760)
     time.sleep(0.5)
-    pyautogui.leftClick(1092, 788)
+    pyautogui.leftClick(1092, 760)
 
     #Checking until export is finished exporting LOL
-  
-    time.sleep(10)
+    
+    if audio_duration > 600:
+        pause_wait = 30
+    else:
+        pause_wait = 10
+
+    time.sleep(pause_wait)
     while True:
-        has_match = area_has_color_match(427, 506)   # saves into ./captures/
+        has_match = area_has_color_match(394, 481)   # saves into ./captures/
 
         print(f"[watch] match={has_match}")
         if has_match:
@@ -505,9 +631,9 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
             continue
         break
 
-    pyautogui.moveTo(359, 244)
+    pyautogui.moveTo(359, 216)
     time.sleep(1.0)
-    pyautogui.leftClick(359, 244)
+    pyautogui.leftClick(359, 216)
 
     #Exit program without saving
     #hit file button
@@ -521,9 +647,9 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.leftClick(220, 429)
 
     #"Dont save"
-    pyautogui.moveTo(921, 529)
+    pyautogui.moveTo(921, 500)
     time.sleep(0.5)
-    pyautogui.leftClick(921, 529)
+    pyautogui.leftClick(921, 500)
 
 
     return export_title

@@ -183,3 +183,4 @@ def generate_thumbnail(
     print(f"Words used: {used_words}/{len(words)}  (ellipsis added: {use_ellipsis and used_words < len(words)})")
     return out_path
 
+
