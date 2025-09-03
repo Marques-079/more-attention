@@ -333,4 +333,3 @@ def build_mrbeast_captions(input_mp4: str | Path,
         pbar.update(1)
 
         return out_video
-

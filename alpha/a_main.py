@@ -9,6 +9,24 @@ from captions import build_mrbeast_captions
 from thumbnail import generate_thumbnail
 from upload_yt import upload_youtube
 
+# ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
+TITLE = "What Really Happened — AITA #42"
+DESCRIPTION = (
+    "In today’s episode, we break down a wild AITA post and what actually happened.\n"
+    "Chapters:\n"
+    "00:00 Intro\n"
+    "00:25 The post\n"
+    "03:10 Reactions\n"
+    "04:55 Verdict"
+)
+HASHTAGS = "#AITA #Reddit #WhatReallyHappened #Shorts"  # Hashtags go in title/description text
+TAGS = ["AITA", "Reddit", "storytime", "analysis"]      # Non-public tags array
+SCHEDULE_AT_LOCAL = None #"2025-09-04 19:30"
+# Choose a mode: "instant" | "scheduled" | "private"
+MODE = "private"
+
+#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
+
 def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas=True) -> str:
     s = re.sub(r'\s*[\r\n]+\s*', ' ', text)
     s = re.sub(r'[ \t\u00A0]+', ' ', s)
@@ -26,11 +44,12 @@ def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas
 print('Operating now...')
 
 #MOC SCRIPT CALL
-# with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/1text.txt", "r", encoding="utf-8") as f:
-#   text = f.read()
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/2text.txt", "r", encoding="utf-8") as f:
+  text = f.read()
 
-text = '''
-Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
+# text = '''
+# Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
+
 text = clean_script_text(text)
 
 #Convert text to speech (audio wav + duration seconds)
@@ -48,7 +67,7 @@ target_name_audio = file_path.name               # e.g. "voice_20250902_141530.w
 
 #print(target_name_audio)
 
-export_title = make_edits(2, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
+export_title = make_edits(1, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
 
 #print(export_title)
 
@@ -64,12 +83,13 @@ thumbnail_path = generate_thumbnail(template_choice=1, script_text=thumbnail_scr
 print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
 
 
+post_youtube = input("Do you want to post this to Youtube using API?")
+if post_youtube.lower() == "y":
+    upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
+else:
+    print("Not uploading to YouTube.")
+    pass
 
-
-
-
-
-#upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
 
 #TODO 
 '''
@@ -78,8 +98,4 @@ Finalised prompts for script generation and idea gathering prawn?
 Many channels -> niches? 
 
 shorts pipeline too
-'''
-
-'''
-Need to format script, remove /n and swap commas for '-'
 '''
