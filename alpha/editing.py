@@ -413,6 +413,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     #Import audio clip
 
     #Move mouse to prject relevant area zone
+    time.sleep(2.0)
     pyautogui.moveTo(73, 154)
     pyautogui.leftClick()
 
@@ -500,7 +501,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
         print(f"[watch] match={has_match}")
         if has_match:
-            time.sleep(2.0)
+            time.sleep(3.0)
             continue
         break
 

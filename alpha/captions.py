@@ -24,12 +24,13 @@ CUSTOM_FONT_DIR   = Path.home() / "Documents" / "mrbeast_caps" / "fonts"
 #               "slide_left", "slide_right", "rotate", "inflate", "inflate_soft"
 ANIM              = "inflate"
 ANIM_IN_MS        = 20000   # main appear time (ms) for transform/move
-ANIM_OUT_MS       = 50    # fade-out tail (used by 'fade'; others ignore)
+ANIM_OUT_MS       = 50      # fade-out tail (used by 'fade'; others ignore)
 # ========================================================================
 
 import subprocess, shutil, platform, re, sys
 from datetime import timedelta
 from faster_whisper import WhisperModel
+from tqdm.auto import tqdm
 
 # ---------- load Whisper with a supported compute_type ----------
 import platform as _pf
@@ -211,79 +212,125 @@ def build_center_caption_events(lines,
         events.append(f"Dialogue: 0,{_fmt_time(t0)},{_fmt_time(t1)},Beast,,0,0,0,,{ov}{text}")
     return events
 
-# ---------- 1) Transcribe (word timestamps) ----------
-video_path = Path(INPUT_VIDEO).expanduser().resolve()
-assert video_path.exists(), f"Video not found: {video_path}"
-print("[info] video:", video_path)
 
-print("[info] loading Whisper model …")
-model = load_whisper_auto(MODEL_NAME)
+# ============= CALLABLE FUNCTION: wraps entire pipeline ======================
+from pathlib import Path
+from tqdm.auto import tqdm
+import re, shutil, platform, subprocess
 
-print("[info] transcribing (word timestamps) …")
-segments, _ = model.transcribe(str(video_path), vad_filter=True, word_timestamps=True)
+# add these at the top of your file (with your other imports)
+import tempfile, os
+from pathlib import Path
+import re, shutil, platform, subprocess
+from tqdm.auto import tqdm
 
-words = []
-for seg in segments:
-    if seg.words:
-        for w in seg.words:
-            tok = (w.word or "").strip()
-            if tok:
-                words.append({"start": float(w.start), "end": float(w.end), "text": tok})
+def build_mrbeast_captions(input_mp4: str | Path,
+                           output_dir: str | Path = Path.home() / "Downloads",
+                           output_name: str | None = None,
+                           keep_ass: bool = False) -> Path:
+    """
+    Full pipeline; writes only the final MP4 by default.
+    Set keep_ass=True if you want to keep the .ass file.
+    """
+    steps = ["Validate input", "Load Whisper", "Transcribe", "Build ASS", "Write ASS", "FFmpeg burn"]
+    with tqdm(total=len(steps), desc="MrBeast Caption Pipeline", unit="step") as pbar:
+        # 1) Validate input
+        video_path = Path(input_mp4).expanduser().resolve()
+        assert video_path.exists(), f"Video not found: {video_path}"
+        print("[info] video:", video_path)
+        pbar.update(1)
 
-print(f"[info] words captured: {len(words)}")
+        # 2) Load Whisper
+        print("[info] loading Whisper model …")
+        model = load_whisper_auto(MODEL_NAME)
+        pbar.update(1)
 
-# ---------- 2) Choose your downloaded font & build ASS ------------------------
-font_file, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
-ASS_HEADER = ASS_HEADER_TMPL.format(font=FONT_NAME, size=FONT_SIZE)
+        # 3) Transcribe
+        print("[info] transcribing (word timestamps) …")
+        segments, _ = model.transcribe(str(video_path), vad_filter=True, word_timestamps=True)
+        words = []
+        for seg in segments:
+            if seg.words:
+                for w in seg.words:
+                    tok = (w.word or "").strip()
+                    if tok:
+                        words.append({"start": float(w.start), "end": float(w.end), "text": tok})
+        print(f"[info] words captured: {len(words)}")
+        pbar.update(1)
 
-caption_lines = group_words_to_captions(
-    words,
-    max_words=MAX_WORDS_PER_CAP,
-    max_chars=MAX_CHARS_PER_CAP,
-    max_gap_s=MAX_GAP_SEC
-)
-print(f"[info] caption groups built: {len(caption_lines)} "
-      f"(max_words={MAX_WORDS_PER_CAP}, max_chars={MAX_CHARS_PER_CAP}, max_gap_s={MAX_GAP_SEC})")
+        # 4) Build ASS text (unchanged)
+        font_file, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
+        ASS_HEADER = ASS_HEADER_TMPL.format(font=FONT_NAME, size=FONT_SIZE)
+        caption_lines = group_words_to_captions(
+            words,
+            max_words=MAX_WORDS_PER_CAP,
+            max_chars=MAX_CHARS_PER_CAP,
+            max_gap_s=MAX_GAP_SEC
+        )
+        print(f"[info] caption groups built: {len(caption_lines)} "
+              f"(max_words={MAX_WORDS_PER_CAP}, max_chars={MAX_CHARS_PER_CAP}, max_gap_s={MAX_GAP_SEC})")
+        ass_events = build_center_caption_events(
+            caption_lines,
+            center_xy=(CENTER_X, CENTER_Y),
+            uppercase=UPPERCASE,
+            min_caption=MIN_CAPTION_SEC,
+            cut_ahead=CUT_AHEAD_SEC,
+            tail_hold=TAIL_HOLD_SEC,
+            anim=ANIM,
+            in_ms=ANIM_IN_MS,
+            out_ms=ANIM_OUT_MS
+        )
+        ass_text = ASS_HEADER + "\n".join(ass_events)
+        pbar.update(1)
 
-ass_events = build_center_caption_events(
-    caption_lines,
-    center_xy=(CENTER_X, CENTER_Y),
-    uppercase=UPPERCASE,
-    min_caption=MIN_CAPTION_SEC,
-    cut_ahead=CUT_AHEAD_SEC,
-    tail_hold=TAIL_HOLD_SEC,        # <<— NEW
-    anim=ANIM,
-    in_ms=ANIM_IN_MS,
-    out_ms=ANIM_OUT_MS
-)
-ass_text = ASS_HEADER + "\n".join(ass_events)
+        # 5) Resolve output paths
+        output_dir = Path(output_dir).expanduser().resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        safe_stem = re.sub(r'[^A-Za-z0-9_.-]+', '_', video_path.stem)
+        stem = output_name if output_name else safe_stem
 
-# write ASS + output into Downloads
-safe_stem = re.sub(r'[^A-Za-z0-9_.-]+', '_', video_path.stem)
-downloads = Path.home() / "Downloads"
-ass_path = downloads / f"{safe_stem}_auto.ass"
-ass_path.write_text(ass_text, encoding="utf-8")
-print("[info] wrote ASS:", ass_path)
-print("[check] FONT =", FONT_NAME, "| SIZE =", FONT_SIZE, "| ANIM =", ANIM)
+        # Write ASS either permanently or to a temp file
+        if keep_ass:
+            ass_path = output_dir / f"{stem}_auto.ass"
+            ass_path.write_text(ass_text, encoding="utf-8")
+            print("[info] wrote ASS:", ass_path)
+        else:
+            fd, tmp = tempfile.mkstemp(prefix=f"{stem}_", suffix=".ass")
+            os.close(fd)
+            ass_path = Path(tmp)
+            ass_path.write_text(ass_text, encoding="utf-8")
+            print("[info] using temporary ASS:", ass_path.name)
+        print("[check] FONT =", FONT_NAME, "| SIZE =", FONT_SIZE, "| ANIM =", ANIM)
+        pbar.update(1)
 
-# ---------- 3) Burn captions with FFmpeg (output to Downloads) ----------------
-if not shutil.which("ffmpeg"):
-    raise SystemExit("FFmpeg not found on PATH. Install it and rerun.")
+        # 6) Burn with FFmpeg
+        if not shutil.which("ffmpeg"):
+            raise SystemExit("FFmpeg not found on PATH. Install it and rerun.")
 
-fontsdir_arg = f":fontsdir={CUSTOM_FONT_DIR.as_posix()}"
-out_video = downloads / f"{safe_stem}_mrbeast_{ANIM}.mp4"
-vcodec = "h264_videotoolbox" if platform.system() == "Darwin" else "libx264"
-vf_arg = f"ass={ass_path.as_posix()}{fontsdir_arg}"
+        fontsdir_arg = f":fontsdir={CUSTOM_FONT_DIR.as_posix()}"
+        out_video = output_dir / f"{stem}.mp4"  # or keep your old suffix pattern
+        vcodec = "h264_videotoolbox" if platform.system() == "Darwin" else "libx264"
+        vf_arg = f"ass={ass_path.as_posix()}{fontsdir_arg}"
 
-cmd = [
-    "ffmpeg", "-y",
-    "-i", str(video_path),
-    "-vf", vf_arg,
-    "-c:v", vcodec, "-preset", "veryfast", "-crf", "18",
-    "-c:a", "copy",
-    str(out_video)
-]
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-vf", vf_arg,
+            "-c:v", vcodec, "-preset", "veryfast", "-crf", "18",
+            "-c:a", "copy",
+            str(out_video)
+        ]
+        print("[info] running FFmpeg with filter:", vf_arg)
+        try:
+            subprocess.run(cmd, check=True)
+            print("[done] saved:", out_video)
+        finally:
+            if not keep_ass:
+                try:
+                    ass_path.unlink()
+                except FileNotFoundError:
+                    pass
+        pbar.update(1)
 
-print("[info] running FFmpeg with filter:", vf_arg)
-subprocess.run(cmd, check=True)
-print("[done] saved:", out_video)
+        return out_video
+
