@@ -1,3 +1,8 @@
 /.venv/
 .env
 /captures
+/yt_apis
+
+
+Old key for YoutubeAPI -> Web app misselect
+{"web":{"client_id":"491585816596-fc9dhe6nh7g8a3spbd5m83tp65t7r1p5.apps.googleusercontent.com","project_id":"reddit1-471004","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"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","redirect_uris":["http://localhost:8080","http://localhost:8080/oauth2callback"]}}

@@ -381,7 +381,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     #Location to drop into time
     end_x1, end_y1     = 225, 785  
-
+    time.sleep(2.0)
     pyautogui.moveTo(media_x, media_y, duration=0.15)  # hover to start
     time.sleep(0.15)
     pyautogui.mouseDown(button="left")                 # press & hold
@@ -419,7 +419,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     print('Working on importing audio')
     import_audio_clip(target_dir_audio, target_name_audio)
-    time.sleep(0.3)
+    time.sleep(2.0)
     pyautogui.leftClick(1096, 702)
 
     #Add audio clip to timeline
@@ -495,7 +495,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     #Checking until export is finished exporting LOL
   
-    time.sleep(2)
+    time.sleep(10)
     while True:
         has_match = area_has_color_match(427, 506)   # saves into ./captures/
 
