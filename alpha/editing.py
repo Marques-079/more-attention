@@ -328,6 +328,34 @@ def scroll_left_incremental(start=(500, 700), pixels=114, steps=5, pause=0.01):
     # 3) Return to starting position
     pyautogui.moveTo(*start)
 
+def scroll_right_incremental(start=(500, 700), pixels=114, steps=5, pause=0.01):
+    """
+    Focus the timeline, then scroll right in fixed increments.
+    Each step = `pixels`. Run fast with tiny pauses.
+    """
+    # 1) Focus timeline
+    pyautogui.moveTo(*start)
+    pyautogui.click()
+    time.sleep(0.05)
+
+    if platform.system() == "Darwin":
+        for _ in range(steps):
+            mac_hscroll_pixels(+abs(pixels))  # <-- positive for right
+            time.sleep(pause)
+    else:
+        # fallback drag for non-macOS
+        thumb_x, thumb_y = start[0] + 400, start[1] + 320
+        pyautogui.moveTo(thumb_x, thumb_y)
+        pyautogui.mouseDown(button='left')
+        for _ in range(steps):
+            pyautogui.moveRel(+abs(pixels), 0, duration=0.05)
+            time.sleep(pause)
+        pyautogui.mouseUp(button='left')
+
+    # 3) Return cursor to starting point
+    pyautogui.moveTo(*start)
+
+
 #==========================================================================================================================================
 
 
@@ -531,7 +559,8 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     adjust_clip_duration(audio_duration)
 
     """Rescoll to realign after random clip cropping"""
-    scroll_left_incremental(start=(500, 700), pixels=114 * start_s, steps=start_s, pause=0.0005)
+    scroll_right_incremental(start=(500, 700), pixels=114 * start_s, steps= math.floor(start_s * 1.2), pause=0.0005)
+
 
     #Move mouse to prject relevant area zone
     time.sleep(2.0)
