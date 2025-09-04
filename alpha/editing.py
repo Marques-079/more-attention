@@ -11,9 +11,18 @@ from datetime import datetime
 import math, random
 from typing import Optional, Tuple
 
-#media_options = | (0,1), (1, 0), (1, 1), (2, 0), (2, 1)
 media_options = [(459, 238), (255,358), (453, 357), (253, 478), (453, 475)]
 clip_durations= [7226, 4577, 4813, 3600, 1313]
+
+clip_store = {
+    1 : ("minecraft_single_jumps1.mp4", 7200),  #minecraft_single_jumps1.mp4
+    2 : ("minecraftsingle_player1.mp4", 1800),  #minecraftsingle_player1.mp4
+    3 : ("minecraft_default_parkour1.mp4", 1852), #minecraft_default_parkour1.mp4.  SDSDASDASDASDSADSADASDASDASD
+    4 : ("japan_subway_surfers1.mp4", 440), #japan_subway_surfers1.mp4
+    5 : ("gta_ramp1.mp4", 7200),  #gta_ramp1.mp4
+    6 : ("minecraft_parkour_mega1.mp4", 7226) , #minecraft_parkour_mega1.mp4
+    7 : ("minecraft_parkour_mega2.mp4", 8961)  #minecraft_parkour_mega2.mp4
+}
 
 APP_PATH = "/Applications/Wondershare Filmora Mac.app"
 APP_NAME = "Wondershare Filmora Mac"
@@ -390,6 +399,90 @@ def scroll_right_incremental(start=(500, 700), pixels=114, steps=5, pause=0.01):
 #==========================================================================================================================================
 
 
+def _as_escape(s: str) -> str:
+    """Escape a string for embedding inside AppleScript quotes."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+def select_file_in_open_dialog(file_path: str,
+                               app_name: str = APP_NAME,
+                               open_after_select: bool = False) -> None:
+    """
+    With an already-open macOS file dialog (Open panel) in `app_name`,
+    navigate to the directory containing `file_path` and select that file.
+
+    - file_path: absolute or user-tilde path to the file to select
+    - app_name: target application that owns the Open panel
+    - open_after_select: if True, presses Return to confirm (Open). Default False = just select.
+    """
+    p = Path(file_path).expanduser().resolve()
+    if not p.exists():
+        raise FileNotFoundError(f"Target file does not exist: {p}")
+
+    pdir = _as_escape(p.parent.as_posix())
+    fname = _as_escape(p.name)
+
+    # If you want to open the file after selecting it, we optionally hit Return.
+    maybe_open = 'key code 36' if open_after_select else '-- no open'
+
+    ascript = f'''
+    set appName    to "{_as_escape(app_name)}"
+    set targetDir  to "{pdir}"
+    set targetName to "{fname}"
+
+    tell application "System Events"
+        if (exists process appName) is false then return
+        tell process appName
+            set frontmost to true
+            delay 0.1
+
+            -- Find the existing Open panel (as a sheet or a dialog window)
+            set thePanel to missing value
+            repeat 80 times
+                if (exists sheet 1 of window 1) then
+                    set thePanel to sheet 1 of window 1
+                    exit repeat
+                else if (exists window 1 whose subrole is "AXDialog") then
+                    set thePanel to (first window whose subrole is "AXDialog")
+                    exit repeat
+                end if
+                delay 0.15
+            end repeat
+            if thePanel is missing value then return
+
+            -- Bring up "Go to the folder…" inside the open panel
+            keystroke "g" using {{command down, shift down}}
+
+            -- Wait for the small sheet attached to the panel
+            set goSheet to missing value
+            repeat 80 times
+                if (exists sheet 1 of thePanel) then
+                    set goSheet to sheet 1 of thePanel
+                    exit repeat
+                end if
+                delay 0.1
+            end repeat
+            if goSheet is missing value then return
+
+            -- Type the directory path and confirm
+            delay 0.1
+            keystroke "a" using {{command down}} -- select all (if anything present)
+            keystroke targetDir
+            key code 36  -- Return to navigate
+
+            -- Give it a moment to load contents
+            delay 0.3
+
+            -- Type the exact file name to focus/select it (incremental search)
+            keystroke targetName
+            delay 0.05
+            {maybe_open}
+        end tell
+    end tell
+    '''
+    subprocess.run(["osascript", "-e", ascript], check=False)
+
+
+
 APP_NAME = "Wondershare Filmora Mac"
 
 def import_audio_clip(target_dir_audio: str, target_name_audio: str) -> None:
@@ -479,7 +572,7 @@ def import_audio_clip(target_dir_audio: str, target_name_audio: str) -> None:
     '''
     subprocess.run(["osascript", "-e", ascript], check=False)
 
-def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio):
+def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name_audio):
     if not is_running():
         print("Filmora not running. Opening...")
         open_app()
@@ -517,25 +610,37 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     #Ready to start edit. 
     audio_duration = math.ceil(audio_duration)
 
-    """entering global media and adding background to timeline"""
-    pyautogui.moveTo(48, 240)   
+
+
+
+    """Add media to timeline"""
+    pyautogui.moveTo(71, 155)   
     pyautogui.leftClick()
 
-    media_x, media_y = media_options[media_to_use]
-    pyautogui.moveTo(media_x, media_y)
+    pyautogui.moveTo(270, 232)
+    pyautogui.leftClick()
 
+    time.sleep(1.0)
+    select_file_in_open_dialog(f"/Users/marcus/Downloads/background_long_form_reddit1/{clip_store[background_reddit1][0]}",open_after_select=True)
+    time.sleep(1.0)
+
+    pyautogui.moveTo(1096, 677)  
+    time.sleep(0.5)
+    pyautogui.leftClick()       
+
+    time.sleep(2.0)
     #Location to drop into time
     end_x1, end_y1     = 225, 785  
     time.sleep(2.0)
-    pyautogui.moveTo(media_x, media_y, duration=0.15)  # hover to start
+    pyautogui.moveTo(452, 231, duration=0.15)  # hover to start
     time.sleep(0.15)
     pyautogui.mouseDown(button="left")                 # press & hold
     pyautogui.moveTo(end_x1, end_y1, duration=0.25)
     time.sleep(0.15)      # drag while holding
     pyautogui.mouseUp(button="left")                   # release
 
-    time.sleep(3.0)
 
+    time.sleep(3.0)
     """Check if its asking about resolution"""
     if area_has_color_match_snipe(948, 516):
         pyautogui.moveTo(948, 516)
@@ -546,7 +651,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
 
     "Random cropping to starttime + offset"
     rng = random.SystemRandom()
-    start_s, tc = pick_random_crop_start(duration=audio_duration, clip_total=clip_durations[media_to_use], buffer_s = 60, integer_seconds=True,rng = rng)
+    start_s, tc = pick_random_crop_start(duration=audio_duration, clip_total=clip_store[background_reddit1][1], buffer_s = 60, integer_seconds=True,rng = rng)
     print(f"Picked start time: {start_s:.3f} s = {tc}")
     start_s = math.floor(start_s // 5) - 1
 
@@ -609,19 +714,21 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     print('Working on importing audio')
     import_audio_clip(target_dir_audio, target_name_audio)
     time.sleep(2.0)
+
+    #clicks open button
     pyautogui.leftClick(1096, 675)
 
     """Add audio clip to timeline"""
     end_x2, end_y2 = 88, 822
 
-    pyautogui.moveTo(450, 265, duration=0.2)  # hover to start
+    pyautogui.moveTo(457, 260, duration=0.2)  # hover to start
     time.sleep(0.05)
     pyautogui.mouseDown(button="left")                 # press & hold
     pyautogui.moveTo(end_x2, end_y2, duration=0.25)      # drag while holding
     pyautogui.mouseUp(button="left")                   # release
 
     #Mute sound for gameplay background
-    time.sleep(3.0)
+    time.sleep(2.0)
     pyautogui.moveTo(48, 769)
     pyautogui.leftClick()
 

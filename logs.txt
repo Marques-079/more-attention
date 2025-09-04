@@ -1,3 +1,13 @@
+Directory/pathing to note:
+
+ALPHA
+Users/marcus/Downloads/background_long_form_reddit1   : Folder for holding background footages for reddit1
+Users/marcus/Downloads/video_thumbnails               : Folder for holding thumbnails for reddit1
+Users/marcus/Downloads/captioned                      : Final videos ready for exporting to Yt
+Users/marcus/Downloads/clipstore                      : export intermediary from capcut -> caption pipeline
+
+
+
 Yo. Gurt# content-farm
 
 https://docs.google.com/spreadsheets/d/1RcHceMIefviOBGx2nf0dIr5dLvdt_08t34idq9XpAfI/edit?gid=0#gid=0 -> reference resouces on my drive

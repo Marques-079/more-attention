@@ -50,11 +50,11 @@ MODE = "private"
 #=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
 #MOC SCRIPT CALL
-with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
-  text = f.read()
+# with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
+#   text = f.read()
 
-# text = '''
-# Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
+text = '''
+Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
 
 text = clean_script_text(text)
 
