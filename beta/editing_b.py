@@ -588,7 +588,7 @@ def import_audio_clip(target_dir_audio: str, target_name_audio: str) -> None:
     '''
     subprocess.run(["osascript", "-e", ascript], check=False)
 
-def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name_audio):
+def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target_name_audio):
     if not is_running():
         print("Filmora not running. Opening...")
         open_app()
@@ -881,5 +881,3 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
 
 
     return export_title
-
-export_title = make_edits(7, 7, "/Users/marcus/Movies/FilmoraInbox/reddit1_pipeline", "tester_audio.wav")

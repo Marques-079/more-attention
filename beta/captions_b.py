@@ -1,36 +1,89 @@
 # === CONFIG ==============================================================
 from pathlib import Path
-INPUT_VIDEO       = Path.home() / "Downloads" / "My Video-1.mp4"
+import tempfile
+
+
+# Where to save the rendered video:
+OUTPUT_DIR = Path.home() / "Downloads" / "reddit1_filmora_captioned" 
+
+# Filename pattern (placeholders: {stem}=input filename stem, {ts}=timestamp, {anim}=ANIM)
+FILENAME_TEMPLATE = "exported_{ts}.mp4"
+
+
+#INPUT_VIDEO       = Path.home() / "Downloads" / "reddit1_filmora_clipstore" / "tester88888.mp4"
 MODEL_NAME        = "small.en"       # tiny/base/small/medium/large-v3; *.en faster for English
-FONT_SIZE         = 220              # hyperparameter: caption size
-CENTER_X, CENTER_Y= 960, 540         # center for 1920x1080; change for other resolutions
-UPPERCASE         = True             # ALL CAPS for captions
+
+# Caption look
+FONT_SIZE         = 210
+UPPERCASE         = True
+
+# Outline controls
+BORDER_PX         = 12.0             # base outline thickness (px)
+SHADOW_PX         = 2.0              # shadow strength
+BLUR_PX           = 0.0              # small blur reduces shimmer; try 0.3–0.8 if edges flicker
+STABILIZE_OUTLINE = True             # <<< turn this on to animate \bord with scale
 
 # Timing hyperparams
-MIN_CAPTION_SEC   = 0.30             # minimum on-screen time per caption (readability)
-CUT_AHEAD_SEC     = 0.00             # end each caption slightly before next starts (one-at-a-time)
-TAIL_HOLD_SEC     = 1.20             # NEW: extra hold after caption, capped to avoid overlap with next
+MIN_CAPTION_SEC   = 0.30
+CUT_AHEAD_SEC     = 0.00
+TAIL_HOLD_SEC     = 1.20
 
 # Grouping hyperparams (control words/characters per caption)
-MAX_WORDS_PER_CAP = 1                # e.g., 1 = one word per card; set 2, 3, ... to show more
-MAX_CHARS_PER_CAP = None             # e.g., 18; or None to ignore char limit
-MAX_GAP_SEC       = 1.20             # start a new caption if silence/gap exceeds this
+MAX_WORDS_PER_CAP = 1
+MAX_CHARS_PER_CAP = None
+MAX_GAP_SEC       = 1.20
 
-# Font: drop your .ttf/.otf here (no system install needed)
+# Animation
+# ANIM choices: "none","fade","pop","zoom","bounce","slide_up","slide_down",
+#               "slide_left","slide_right","rotate","inflate","inflate_soft"
+ANIM              = "inflate"
+ANIM_IN_MS        = 20000   # your original long ramp; try 200–400 for subtle pop
+ANIM_OUT_MS       = 50
+
+# Fonts
 CUSTOM_FONT_DIR   = Path.home() / "Documents" / "mrbeast_caps" / "fonts"
 
-# Animation hyperparameters
-# ANIM choices: "none", "fade", "pop", "zoom", "bounce", "slide_up", "slide_down",
-#               "slide_left", "slide_right", "rotate", "inflate", "inflate_soft"
-ANIM              = "inflate"
-ANIM_IN_MS        = 20000   # main appear time (ms) for transform/move
-ANIM_OUT_MS       = 50      # fade-out tail (used by 'fade'; others ignore)
+# Rendering safety
+AUTO_PLAYRES      = True             # match ASS PlayRes to actual video resolution
+YUV444_RENDER     = True             # render subs in 4:4:4 to stabilize edges, then downsample
 # ========================================================================
 
-import subprocess, shutil, platform, re, sys
+import os, subprocess, shutil, platform, re, sys
 from datetime import timedelta
 from faster_whisper import WhisperModel
-from tqdm.auto import tqdm
+import re
+from datetime import datetime 
+
+def timestamp(fmt: str = "%Y%m%d_%H%M%S") -> str:
+    """Current local time formatted for filenames."""
+    return datetime.now().strftime(fmt)
+
+def sanitize_stem(stem: str) -> str:
+    """Make a filesystem-safe stem."""
+    return re.sub(r'[^A-Za-z0-9_.-]+', '_', stem).strip('_')
+
+def ensure_dir(p: Path) -> Path:
+    """Create directory if needed and return it."""
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+# ---------- probe video resolution ----------
+def probe_resolution(video_path: Path) -> tuple[int, int]:
+    cmd = [
+        "ffprobe","-v","error","-select_streams","v:0",
+        "-show_entries","stream=width,height","-of","csv=s=x:p=0", str(video_path)
+    ]
+    try:
+        out = subprocess.check_output(cmd, text=True).strip()
+        w, h = map(int, out.split("x"))
+        return w, h
+    except Exception:
+        # fallback
+        return 1920, 1080
+
+# centers derived later once we know resolution
+CENTER_X, CENTER_Y = None, None
 
 # ---------- load Whisper with a supported compute_type ----------
 import platform as _pf
@@ -56,7 +109,7 @@ def pick_custom_font(font_dir: Path):
         print("\n[FONT SETUP REQUIRED]")
         print("1) Download any .ttf or .otf font.")
         print(f"2) Place it here: {font_dir}")
-        print("3) Re-run this cell.")
+        print("3) Re-run.")
         raise SystemExit("[exit] No font found yet.")
     font_file = candidates[0]
     family = None
@@ -71,18 +124,18 @@ def pick_custom_font(font_dir: Path):
     print("[font] Font family set to:", family)
     return font_file, family
 
-# ---------- ASS header (centered, white text, thick black outline) ----------
+# ---------- ASS header template (filled later with resolution) ----------
 ASS_HEADER_TMPL = """[Script Info]
 ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
+PlayResX: {play_w}
+PlayResY: {play_h}
 ScaledBorderAndShadow: yes
 WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 ; White text (Primary), THICK black outline, subtle shadow for separation.
-Style: Beast,{font},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,12,2,5,60,60,60,1
+Style: Beast,{font},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,{border},{shadow},5,60,60,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -96,39 +149,69 @@ def _fmt_time(t: float) -> str:
     s, cs = divmod(rem, 100)
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
-def anim_tag(cx: int, cy: int, name: str, in_ms: int, out_ms: int) -> str:
+# compute start/end scales & animated \bord when stabilizing
+def _scale_spec_for_anim(name: str):
+    name = (name or "none").lower()
+    # start_scale, end_scale
+    if name in ("inflate", "inflate_soft", "pop"):
+        return 80, 100
+    if name == "zoom":
+        return 60, 100
+    # slide/rotate/fade/none: no scale change
+    return 100, 100
+
+def _fmt_float(x: float) -> str:
+    # compact float formatting for ASS tags
+    return f"{x:.2f}".rstrip("0").rstrip(".")
+
+def anim_tag(cx: int, cy: int, name: str, in_ms: int, out_ms: int,
+             border_px: float, stabilize_outline: bool, blur_px: float) -> str:
+    # snap to pixel to reduce subpixel shimmer
+    cx, cy = int(round(cx)), int(round(cy))
+    s0, s1 = _scale_spec_for_anim(name)
+    # outline start/end if stabilizing (inverse proportional to scale)
+    if stabilize_outline and (s0 != s1):
+        bord0 = border_px * (s0 / 100.0)
+        bord1 = border_px * (s1 / 100.0)
+        bord_tag0 = rf"\bord{_fmt_float(bord0)}"
+        bord_anim = rf"\t(0,{in_ms},\bord{_fmt_float(bord1)})"
+    else:
+        bord0 = border_px
+        bord_tag0 = rf"\bord{_fmt_float(bord0)}"
+        bord_anim = ""
+
+    blur_tag = (rf"\blur{_fmt_float(blur_px)}" if blur_px and blur_px > 0 else "")
+
     name = (name or "none").lower()
     if name == "none":
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}}}"
     if name == "fade":
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")\fad(" + f"{in_ms},{out_ms}" + r")}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\fad({in_ms},{out_ms})}}"
     if name == "pop":
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")\fscx80\fscy80\t(0," + f"{in_ms}" + r",\fscx100\fscy100)}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\fscx80\fscy80\t(0,{in_ms},\fscx100\fscy100){bord_anim}}}"
     if name == "zoom":
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")\fscx60\fscy60\t(0," + f"{in_ms}" + r",\fscx100\fscy100)}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\fscx60\fscy60\t(0,{in_ms},\fscx100\fscy100){bord_anim}}}"
     if name == "bounce":
-        return (r"{\an5\move(" + f"{cx},{cy-40},{cx},{cy},0,{in_ms}" + r")"
-                r"\fscx120\fscy120\t(0,120,\fscx95\fscy95)\t(120," + f"{in_ms}" + r",\fscx100\fscy100)}")
+        return (rf"{{\an5\move({cx},{cy-40},{cx},{cy},0,{in_ms}){bord_tag0}{blur_tag}"
+                rf"\fscx120\fscy120\t(0,120,\fscx95\fscy95)\t(120,{in_ms},\fscx100\fscy100){bord_anim}}}")
     if name == "slide_up":
-        return r"{\an5\move(" + f"{cx},{cy+60},{cx},{cy},0,{in_ms}" + r")}"
+        return rf"{{\an5\move({cx},{cy+60},{cx},{cy},0,{in_ms}){bord_tag0}{blur_tag}}}"
     if name == "slide_down":
-        return r"{\an5\move(" + f"{cx},{cy-60},{cx},{cy},0,{in_ms}" + r")}"
+        return rf"{{\an5\move({cx},{cy-60},{cx},{cy},0,{in_ms}){bord_tag0}{blur_tag}}}"
     if name == "slide_left":
-        return r"{\an5\move(" + f"{cx-140},{cy},{cx},{cy},0,{in_ms}" + r")}"
+        return rf"{{\an5\move({cx-140},{cy},{cx},{cy},0,{in_ms}){bord_tag0}{blur_tag}}}"
     if name == "slide_right":
-        return r"{\an5\move(" + f"{cx+140},{cy},{cx},{cy},0,{in_ms}" + r")}"
+        return rf"{{\an5\move({cx+140},{cy},{cx},{cy},0,{in_ms}){bord_tag0}{blur_tag}}}"
     if name == "rotate":
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")\frz-12\t(0," + f"{in_ms}" + r",\frz0)}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\frz-12\t(0,{in_ms},\frz0)}}"
     if name == "inflate":
-        # clean blow-up: scale 80% -> 100%, no move/overshoot
-        return r"{\an5\pos(" + f"{cx},{cy}" + r")\fscx80\fscy80\t(0," + f"{in_ms}" + r",\fscx100\fscy100)}"
+        return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\fscx80\fscy80\t(0,{in_ms},\fscx100\fscy100){bord_anim}}}"
     if name == "inflate_soft":
-        # blow-up with slight blur fade for smoother edges
-        return (r"{\an5\pos(" + f"{cx},{cy}" + r")\fscx80\fscy80\blur2\alpha&H20&"
-                r"\t(0," + f"{in_ms}" + r",\fscx100\fscy100\blur0\alpha&H00&)}")
-    return r"{\an5\pos(" + f"{cx},{cy}" + r")}"
+        return (rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}\fscx80\fscy80\alpha&H20&\blur2"
+                rf"\t(0,{in_ms},\fscx100\fscy100\alpha&H00&\blur0){bord_anim}}}")
+    return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}}}"
 
-# ---------- Group words into captions (by count/chars and pauses) ----------
+# ---------- Group words into captions ----------
 def clean_token(s: str) -> str:
     s = (s or "").strip()
     s = re.sub(r"^\s+|\s+$", "", s)
@@ -167,40 +250,32 @@ def group_words_to_captions(words,
     return lines
 
 def build_center_caption_events(lines,
-                                center_xy=(960,540),
+                                play_w: int, play_h: int,
                                 uppercase=True,
                                 min_caption=0.30,
                                 cut_ahead=0.00,
                                 tail_hold=1.20,
                                 anim="none",
                                 in_ms=220,
-                                out_ms=100):
-    """
-    Build ASS Dialogue lines from grouped captions.
-    - Ensures one-at-a-time (by capping end at next_start - cut_ahead)
-    - Extends each caption by up to `tail_hold` seconds into silence,
-      but never overlaps the next caption.
-    """
-    cx, cy = center_xy
+                                out_ms=100,
+                                border_px=12.0,
+                                stabilize_outline=True,
+                                blur_px=0.0):
+    cx = int(round(play_w / 2))
+    cy = int(round(play_h / 2))
     events = []
     n = len(lines)
     for i, ln in enumerate(lines):
         t0 = float(ln[0]["start"])
         natural_end = float(ln[-1]["end"])
-        # base end: at least natural end or min_caption
         t1 = max(natural_end, t0 + min_caption)
 
         if i + 1 < n:
             next_start = float(lines[i+1][0]["start"])
-            # available gap after this caption (minus safety cut)
             gap_after = max(0.0, next_start - natural_end - cut_ahead)
-            # extend by up to tail_hold, but not beyond the next caption
             t1 = min(max(t1, natural_end + min(tail_hold, gap_after)), next_start - cut_ahead)
         else:
-            # last caption: freely extend by tail_hold
-            t1 = natural_end + tail_hold
-            # still honor min_caption
-            t1 = max(t1, t0 + min_caption)
+            t1 = max(natural_end + tail_hold, t0 + min_caption)
 
         if t1 <= t0:
             t1 = t0 + 0.05
@@ -208,128 +283,139 @@ def build_center_caption_events(lines,
         text = " ".join([w["text"] for w in ln]).strip()
         if uppercase:
             text = text.upper()
-        ov = anim_tag(cx, cy, anim, in_ms, out_ms)
+
+        ov = anim_tag(cx, cy, anim, in_ms, out_ms, border_px, stabilize_outline, blur_px)
         events.append(f"Dialogue: 0,{_fmt_time(t0)},{_fmt_time(t1)},Beast,,0,0,0,,{ov}{text}")
     return events
 
+import tempfile
 
-# ============= CALLABLE FUNCTION: wraps entire pipeline ======================
-from pathlib import Path
-from tqdm.auto import tqdm
-import re, shutil, platform, subprocess
+def beta_captions(INPUT_VIDEO) -> str:
+    # ---------- 1) Transcribe (word timestamps) ----------
+    video_path = Path(INPUT_VIDEO).expanduser().resolve()
+    assert video_path.exists(), f"Video not found: {video_path}"
+    print("[info] video:", video_path)
 
-# add these at the top of your file (with your other imports)
-import tempfile, os
-from pathlib import Path
-import re, shutil, platform, subprocess
-from tqdm.auto import tqdm
+    # Determine ASS PlayRes + default center based on actual video dimensions
+    PLAY_W, PLAY_H = probe_resolution(video_path) if AUTO_PLAYRES else (1920, 1080)
+    if CENTER_X is None or CENTER_Y is None:
+        cx, cy = PLAY_W // 2, PLAY_H // 2
+    else:
+        cx, cy = CENTER_X, CENTER_Y
+    print(f"[info] PlayRes set to: {PLAY_W}x{PLAY_H} | Center=({cx},{cy})")
 
-def build_mrbeast_captions(input_mp4: str | Path,
-                           output_dir: str | Path = Path.home() / "Downloads",
-                           output_name: str | None = None,
-                           keep_ass: bool = False) -> Path:
-    """
-    Full pipeline; writes only the final MP4 by default.
-    Set keep_ass=True if you want to keep the .ass file.
-    """
-    steps = ["Validate input", "Load Whisper", "Transcribe", "Build ASS", "Write ASS", "FFmpeg burn"]
-    with tqdm(total=len(steps), desc="MrBeast Caption Pipeline", unit="step") as pbar:
-        # 1) Validate input
-        video_path = Path(input_mp4).expanduser().resolve()
-        assert video_path.exists(), f"Video not found: {video_path}"
-        print("[info] video:", video_path)
-        pbar.update(1)
+    print("[info] loading Whisper model …")
+    model = load_whisper_auto(MODEL_NAME)
 
-        # 2) Load Whisper
-        print("[info] loading Whisper model …")
-        model = load_whisper_auto(MODEL_NAME)
-        pbar.update(1)
+    print("[info] transcribing (word timestamps) …")
+    segments, _ = model.transcribe(str(video_path), vad_filter=True, word_timestamps=True)
 
-        # 3) Transcribe
-        print("[info] transcribing (word timestamps) …")
-        segments, _ = model.transcribe(str(video_path), vad_filter=True, word_timestamps=True)
-        words = []
-        for seg in segments:
-            if seg.words:
-                for w in seg.words:
-                    tok = (w.word or "").strip()
-                    if tok:
-                        words.append({"start": float(w.start), "end": float(w.end), "text": tok})
-        print(f"[info] words captured: {len(words)}")
-        pbar.update(1)
+    words = []
+    for seg in segments:
+        if seg.words:
+            for w in seg.words:
+                tok = (w.word or "").strip()
+                if tok:
+                    words.append({"start": float(w.start), "end": float(w.end), "text": tok})
 
-        # 4) Build ASS text (unchanged)
-        font_file, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
-        ASS_HEADER = ASS_HEADER_TMPL.format(font=FONT_NAME, size=FONT_SIZE)
-        caption_lines = group_words_to_captions(
-            words,
-            max_words=MAX_WORDS_PER_CAP,
-            max_chars=MAX_CHARS_PER_CAP,
-            max_gap_s=MAX_GAP_SEC
-        )
-        print(f"[info] caption groups built: {len(caption_lines)} "
-              f"(max_words={MAX_WORDS_PER_CAP}, max_chars={MAX_CHARS_PER_CAP}, max_gap_s={MAX_GAP_SEC})")
-        ass_events = build_center_caption_events(
-            caption_lines,
-            center_xy=(CENTER_X, CENTER_Y),
-            uppercase=UPPERCASE,
-            min_caption=MIN_CAPTION_SEC,
-            cut_ahead=CUT_AHEAD_SEC,
-            tail_hold=TAIL_HOLD_SEC,
-            anim=ANIM,
-            in_ms=ANIM_IN_MS,
-            out_ms=ANIM_OUT_MS
-        )
-        ass_text = ASS_HEADER + "\n".join(ass_events)
-        pbar.update(1)
+    print(f"[info] words captured: {len(words)}")
 
-        # 5) Resolve output paths
-        output_dir = Path(output_dir).expanduser().resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
-        safe_stem = re.sub(r'[^A-Za-z0-9_.-]+', '_', video_path.stem)
-        stem = output_name if output_name else safe_stem
+    # ---------- 2) Build ASS in-memory ------------------------
+    font_file, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
+    ASS_HEADER = ASS_HEADER_TMPL.format(
+        play_w=PLAY_W, play_h=PLAY_H, font=FONT_NAME, size=FONT_SIZE,
+        border=_fmt_float(BORDER_PX), shadow=_fmt_float(SHADOW_PX)
+    )
 
-        # Write ASS either permanently or to a temp file
-        if keep_ass:
-            ass_path = output_dir / f"{stem}_auto.ass"
-            ass_path.write_text(ass_text, encoding="utf-8")
-            print("[info] wrote ASS:", ass_path)
+    caption_lines = group_words_to_captions(
+        words,
+        max_words=MAX_WORDS_PER_CAP,
+        max_chars=MAX_CHARS_PER_CAP,
+        max_gap_s=MAX_GAP_SEC
+    )
+    print(f"[info] caption groups built: {len(caption_lines)} "
+          f"(max_words={MAX_WORDS_PER_CAP}, max_chars={MAX_CHARS_PER_CAP}, max_gap_s={MAX_GAP_SEC})")
+
+    ass_events = build_center_caption_events(
+        caption_lines,
+        play_w=PLAY_W, play_h=PLAY_H,
+        uppercase=UPPERCASE,
+        min_caption=MIN_CAPTION_SEC,
+        cut_ahead=CUT_AHEAD_SEC,
+        tail_hold=TAIL_HOLD_SEC,
+        anim=ANIM,
+        in_ms=ANIM_IN_MS,
+        out_ms=ANIM_OUT_MS,
+        border_px=BORDER_PX,
+        stabilize_outline=STABILIZE_OUTLINE,
+        blur_px=BLUR_PX
+    )
+    ass_text = ASS_HEADER + "\n".join(ass_events)
+
+    # ---------- 3) Decide output path (dir + timestamped filename) ----------
+    out_dir = ensure_dir(Path(OUTPUT_DIR))   # <-- EDIT save folder here
+    safe_stem = sanitize_stem(video_path.stem)
+    ts = timestamp()                         # e.g. 20250904_211530
+    out_name = FILENAME_TEMPLATE.format(stem=safe_stem, ts=ts, anim=ANIM)
+    out_video = (out_dir / out_name).resolve()
+    out_tmp = out_video.with_suffix(".tmp.mp4")  # safer atomic write
+
+    print("[info] OUTPUT_DIR:", out_dir)
+    print("[info] Output file:", out_video)
+
+    # ---------- 4) Burn captions with FFmpeg (temporary .ass; auto-delete) ---
+    if not shutil.which("ffmpeg"):
+        raise SystemExit("FFmpeg not found on PATH. Install it and rerun.")
+
+    fontsdir_arg = f":fontsdir={CUSTOM_FONT_DIR.as_posix()}"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".ass", delete=False, encoding="utf-8") as tmp:
+            tmp.write(ass_text)
+            tmp.flush()
+            tmp_path = Path(tmp.name)
+
+        if YUV444_RENDER:
+            vf_arg = f"format=yuv444p,ass={tmp_path.as_posix()}{fontsdir_arg},format=yuv420p"
         else:
-            fd, tmp = tempfile.mkstemp(prefix=f"{stem}_", suffix=".ass")
-            os.close(fd)
-            ass_path = Path(tmp)
-            ass_path.write_text(ass_text, encoding="utf-8")
-            print("[info] using temporary ASS:", ass_path.name)
-        print("[check] FONT =", FONT_NAME, "| SIZE =", FONT_SIZE, "| ANIM =", ANIM)
-        pbar.update(1)
+            vf_arg = f"ass={tmp_path.as_posix()}{fontsdir_arg}"
 
-        # 6) Burn with FFmpeg
-        if not shutil.which("ffmpeg"):
-            raise SystemExit("FFmpeg not found on PATH. Install it and rerun.")
-
-        fontsdir_arg = f":fontsdir={CUSTOM_FONT_DIR.as_posix()}"
-        out_video = output_dir / f"{stem}.mp4"  # or keep your old suffix pattern
         vcodec = "h264_videotoolbox" if platform.system() == "Darwin" else "libx264"
-        vf_arg = f"ass={ass_path.as_posix()}{fontsdir_arg}"
-
         cmd = [
             "ffmpeg", "-y",
             "-i", str(video_path),
             "-vf", vf_arg,
             "-c:v", vcodec, "-preset", "veryfast", "-crf", "18",
             "-c:a", "copy",
-            str(out_video)
+            str(out_tmp)
         ]
-        print("[info] running FFmpeg with filter:", vf_arg)
-        try:
-            subprocess.run(cmd, check=True)
-            print("[done] saved:", out_video)
-        finally:
-            if not keep_ass:
-                try:
-                    ass_path.unlink()
-                except FileNotFoundError:
-                    pass
-        pbar.update(1)
 
-        return out_video
+        print("[info] ffmpeg cmd:", " ".join(cmd))
+        run = subprocess.run(cmd, check=False, text=True, capture_output=True)
+        if run.returncode != 0:
+            print(run.stderr)
+            raise RuntimeError(f"ffmpeg failed (code {run.returncode})")
+
+        # atomic move to final name
+        out_tmp.replace(out_video)
+        print("[done] saved:", out_video)
+
+    finally:
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception as e:
+                print(f"[warn] could not delete temp ASS: {e}")
+        if out_tmp.exists():
+            try:
+                out_tmp.unlink()
+            except Exception:
+                pass
+
+    # Sanity check
+    if not out_video.exists():
+        raise FileNotFoundError(f"Expected output not found: {out_video}")
+
+    # ---------- 5) Return the full output path ----------
+    return out_video.as_posix()
