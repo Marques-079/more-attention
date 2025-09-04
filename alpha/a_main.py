@@ -7,7 +7,8 @@ from script import generate_script2
 from voice import compile_audio
 from captions import build_mrbeast_captions
 from thumbnail import generate_thumbnail
-from upload_yt import upload_youtube
+#from upload_yt import upload_youtube
+from upload_yt2 import upload_youtube2 #<---- v2 for channel specific upload. .json must be in yt_apis folder
 
 def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas=True) -> str:
     s = re.sub(r'\s*[\r\n]+\s*', ' ', text)
@@ -91,7 +92,10 @@ print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_ye
 
 post_youtube = input("Do you want to post this to Youtube using API?")
 if post_youtube.lower() == "y":
-    upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
+    #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
+
+    #Channel specific v2 of upload function 
+    upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
 else:
     print("Not uploading to YouTube.")
     pass

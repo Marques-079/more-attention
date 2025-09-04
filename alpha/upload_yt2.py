@@ -8,14 +8,19 @@ from datetime import datetime
 from zoneinfo import ZoneInfo  # Python 3.9+
 from pathlib import Path
 import os
-import sys
-import time
 
 # ---------------------------
 # CONFIG (paths + OAuth)
 # ---------------------------
 
-CLIENT_SECRET_FILE = str((Path.cwd().parents[2] / "Documents" / "Github" / "more-attention" / "yt_apis" / "whatreallyhappened.json").resolve())
+# Folder that contains your different channel OAuth JSON files
+# (same place where "whatreallyhappened.json" already lives)
+YT_API_DIR = (Path.cwd().parents[2] /
+              "Documents" / "Github" / "more-attention" / "yt_apis")
+
+# Where to store OAuth tokens (one per channel)
+TOKEN_DIR = Path.cwd() / "tokens"
+TOKEN_DIR.mkdir(parents=True, exist_ok=True)
 
 # Scopes: upload + manage videos/metadata/thumbnail
 SCOPES = [
@@ -29,26 +34,51 @@ DEFAULT_TZ = "Pacific/Auckland"
 # Chunk size for resumable uploads (8 MB is a good balance)
 CHUNK_SIZE = 8 * 1024 * 1024
 
+
 # ---------------------------
-# Auth helper
+# Helpers to resolve creds
 # ---------------------------
-def get_youtube_service():
-    """Authenticate and return an authorized YouTube API client."""
+def resolve_channel_credentials(channel_api_json: str) -> tuple[str, str]:
+    """
+    Resolve the client_secret_file and a per-channel token file.
+
+    channel_api_json can be 'whatreallyhappened.json' or just 'whatreallyhappened'.
+    """
+    fname = channel_api_json if channel_api_json.endswith(".json") else f"{channel_api_json}.json"
+
+    # Allow absolute paths too
+    candidate = Path(fname)
+    if not candidate.is_absolute():
+        candidate = (YT_API_DIR / fname).resolve()
+
+    if not candidate.exists():
+        raise FileNotFoundError(f"Client secret file not found: {candidate}")
+
+    token_file = (TOKEN_DIR / f"token_{candidate.stem}.json").resolve()
+    return str(candidate), str(token_file)
+
+
+# ---------------------------
+# Auth helper (parameterized)
+# ---------------------------
+def get_youtube_service(client_secret_file: str, token_file: str):
+    """Authenticate and return an authorized YouTube API client for the given channel."""
     creds = None
-    if Path(TOKEN_FILE).exists():
+    if Path(token_file).exists():
         try:
-            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+            creds = Credentials.from_authorized_user_file(token_file, SCOPES)
         except Exception:
             creds = None
 
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+        flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
         # Opens a local server to complete OAuth
         creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+        with open(token_file, "w", encoding="utf-8") as f:
             f.write(creds.to_json())
 
     return build("youtube", "v3", credentials=creds)
+
 
 # ---------------------------
 # Time helpers
@@ -58,16 +88,15 @@ def nz_local_to_rfc3339_utc(dt_local_str: str, tz_name: str = DEFAULT_TZ) -> str
     Convert a local NZ datetime string ('YYYY-MM-DD HH:MM' or 'YYYY-MM-DD HH:MM:SS')
     into RFC3339 UTC (e.g. '2025-09-03T12:00:00Z').
     """
-    # Accept "YYYY-MM-DD HH:MM" or "...:SS"
     try:
         dt_local = datetime.fromisoformat(dt_local_str.strip())
     except ValueError:
         raise ValueError("Use 'YYYY-MM-DD HH:MM' (or HH:MM:SS) for schedule time.")
 
-    # Attach timezone and convert to UTC
     dt_local = dt_local.replace(tzinfo=ZoneInfo(tz_name))
     dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
     return dt_utc.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
 
 # ---------------------------
 # Core uploader
@@ -76,69 +105,50 @@ def upload_video_with_thumbnail(
     video_path: str | os.PathLike,
     thumbnail_path: str | os.PathLike,
     *,
-    mode: str = "instant",            # "instant" | "scheduled" | "private"
+    mode: str = "instant",                 # "instant" | "scheduled" | "private"
     schedule_at_local: str | None = None,  # "YYYY-MM-DD HH:MM" in Pacific/Auckland
     title: str = "",
     description: str = "",
-    hashtags_text: str = "",          # e.g., "#AITA #Reddit #Shorts"
-    tags_list: list[str] | None = None, # non-public tags (not the #hashtags)
-    category_id: str = "24",          # 24 = Entertainment
-    made_for_kids: bool = False
+    hashtags_text: str = "",               # e.g., "#AITA #Reddit #Shorts"
+    tags_list: list[str] | None = None,    # non-public tags (not the #hashtags)
+    category_id: str = "24",               # 24 = Entertainment
+    made_for_kids: bool = False,
+    client_secret_file: str = "",          # <-- per-channel
+    token_file: str = "",                  # <-- per-channel
 ) -> str:
     """
     Uploads a video, sets metadata & thumbnail, and returns the videoId.
     """
-    yt = get_youtube_service()
+    if not client_secret_file or not token_file:
+        raise ValueError("client_secret_file and token_file are required (per-channel auth).")
 
-    # ---------------------------
-    # Build snippet & status
-    # ---------------------------
-    # === INSERT TITLE HERE ===
+    yt = get_youtube_service(client_secret_file, token_file)
+
     snippet = {
         "title": title.strip() or "Untitled Upload",
-        # === INSERT DESCRIPTION + HASHTAGS HERE ===
         # Hashtags belong in title or description as plain text starting with '#'
         "description": (description.strip() + ("\n\n" + hashtags_text.strip() if hashtags_text.strip() else "")),
         "categoryId": category_id,
     }
     if tags_list:
-        # These are the hidden "tags" (not hashtags). Keep <= 500 chars total.
+        # Hidden "tags" (<= 500 chars total)
         snippet["tags"] = tags_list
 
-    # status based on mode
-    status = {}
     mode = (mode or "instant").lower()
     if mode == "instant":
-        status = {
-            "privacyStatus": "public",
-            "selfDeclaredMadeForKids": bool(made_for_kids),
-        }
+        status = {"privacyStatus": "public", "selfDeclaredMadeForKids": bool(made_for_kids)}
     elif mode == "scheduled":
         if not schedule_at_local:
             raise ValueError("For mode='scheduled', provide schedule_at_local (e.g., '2025-09-10 18:30').")
         publish_at_utc = nz_local_to_rfc3339_utc(schedule_at_local, tz_name=DEFAULT_TZ)
-        # Scheduling requires video to be private until 'publishAt'
-        status = {
-            "privacyStatus": "private",
-            "publishAt": publish_at_utc,
-            "selfDeclaredMadeForKids": bool(made_for_kids),
-        }
+        status = {"privacyStatus": "private", "publishAt": publish_at_utc, "selfDeclaredMadeForKids": bool(made_for_kids)}
     elif mode == "private":
-        status = {
-            "privacyStatus": "private",
-            "selfDeclaredMadeForKids": bool(made_for_kids),
-        }
+        status = {"privacyStatus": "private", "selfDeclaredMadeForKids": bool(made_for_kids)}
     else:
         raise ValueError("mode must be one of: 'instant', 'scheduled', 'private'")
 
-    body = {
-        "snippet": snippet,
-        "status": status,
-    }
+    body = {"snippet": snippet, "status": status}
 
-    # ---------------------------
-    # Upload (resumable)
-    # ---------------------------
     vpath = Path(video_path)
     tpath = Path(thumbnail_path)
     if not vpath.exists():
@@ -165,52 +175,31 @@ def upload_video_with_thumbnail(
     video_id = response["id"]
     print(f"Upload complete. videoId = {video_id}")
 
-    # ---------------------------
-    # Set custom thumbnail
-    # ---------------------------
     try:
         print(f"Setting thumbnail: {tpath.name}")
-        thumb_req = yt.thumbnails().set(videoId=video_id, media_body=str(tpath))
-        thumb_resp = thumb_req.execute()
-        # (Optional) print(thumb_resp)
+        yt.thumbnails().set(videoId=video_id, media_body=str(tpath)).execute()
     except HttpError as e:
         print(f"Thumbnail set failed (continuing): {e}")
 
-    # FYI: You can further edit metadata later via videos().update(part="snippet,status", body={...})
     return video_id
 
+
 # ---------------------------
-# Example usage
+# Public wrapper you call
 # ---------------------------
-TOKEN_FILE = "token.json"
-
-def upload_youtube(VIDEO_PATH, THUMB_PATH, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL):
-
-    '''
-    # === INSERT YOUR PATHS HERE ===
-    VIDEO_PATH = "/Users/marcus/Downloads/reddit1_filmora_captioned/exported_2025-09-03_18-18-49_My_Video.mp4"
-    THUMB_PATH = "/Users/marcus/Downloads/video_thumbnails_reddit1/WRH_black_20250903_182049.png"
-
-    # === INSERT TITLE / DESCRIPTION / HASHTAGS HERE ===
-    TITLE = "What Really Happened — AITA #42"
-    DESCRIPTION = (
-        "In today’s episode, we break down a wild AITA post and what actually happened.\n"
-        "Chapters:\n"
-        "00:00 Intro\n"
-        "00:25 The post\n"
-        "03:10 Reactions\n"
-        "04:55 Verdict"
-    )
-    HASHTAGS = "#AITA #Reddit #WhatReallyHappened #Shorts"  # Hashtags go in title/description text
-    TAGS = ["AITA", "Reddit", "storytime", "analysis"]      # Non-public tags array
-
-    # Choose a mode: "instant" | "scheduled" | "private"
-    MODE = "private"
-
-    # If scheduling, set your NZ local time here (24h):
-    # Format: "YYYY-MM-DD HH:MM" or "YYYY-MM-DD HH:MM:SS"
-    SCHEDULE_AT_LOCAL = "2025-09-04 19:30"  # Pacific/Auckland, converted to UTC automatically
-    '''
+def upload_youtube2(
+    VIDEO_PATH,
+    THUMB_PATH,
+    TITLE,
+    DESCRIPTION,
+    HASHTAGS,
+    TAGS,
+    MODE,
+    SCHEDULE_AT_LOCAL,
+    channel_api_json: str = "whatreallyhappened.json",  # <-- pick channel here
+):
+    # Resolve which channel to use
+    client_secret_file, token_file = resolve_channel_credentials(channel_api_json)
 
     video_id = upload_video_with_thumbnail(
         video_path=VIDEO_PATH,
@@ -223,10 +212,9 @@ def upload_youtube(VIDEO_PATH, THUMB_PATH, TITLE, DESCRIPTION, HASHTAGS, TAGS, M
         tags_list=TAGS,
         category_id="24",
         made_for_kids=False,
+        client_secret_file=client_secret_file,  # per-channel
+        token_file=token_file,                  # per-channel
     )
 
     print(f"\nDone. Video published/queued: https://www.youtube.com/watch?v={video_id}")
-
-    return
-
-
+    return video_id
