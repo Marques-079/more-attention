@@ -30,7 +30,7 @@ print('Operating now...')
 #text = generate_script2("At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Apart…")
 
 # ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
-TITLE = "[FULL STORY] She Was My Maid of Honor. Now She’s My Ex-Husband’s Fiancée."
+TITLE = "[FULL STORY] My Roommate Tried To Ruin My Life, So I Planned A Payback She’ll Never Forget.."
 
 DESCRIPTION = "\n".join([
     "Daily stories to help with life's emotional damage 🗣🔥🔥",
@@ -50,7 +50,7 @@ MODE = "private"
 #=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
 #MOC SCRIPT CALL
-with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/1text.txt", "r", encoding="utf-8") as f:
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
   text = f.read()
 
 # text = '''
@@ -89,16 +89,21 @@ thumbnail_path = generate_thumbnail(template_choice=0, script_text=thumbnail_scr
 
 print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
 
+#Auto upload.
+upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
 
-post_youtube = input("Do you want to post this to Youtube using API?")
-if post_youtube.lower() == "y":
-    #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
 
-    #Channel specific v2 of upload function 
-    upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
-else:
-    print("Not uploading to YouTube.")
-    pass
+'''Double checking before uploading logic'''
+# post_youtube = input("Do you want to post this to Youtube using API?")
+
+# if post_youtube.lower() == "y":
+#     #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
+
+#     #Channel specific v2 of upload function 
+#     upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
+# else:
+#     print("Not uploading to YouTube.")
+#     pass
 
 
 #TODO 

@@ -213,6 +213,37 @@ def navigate_open_dialog_to_folder(dir_path: str):
     '''
     subprocess.run(["osascript", "-e", ascript], check=False)
 
+import pyautogui
+
+def area_has_color_match_snipe(x: int, y: int,
+                         target_rgba=(86, 231, 199, 255),
+                         tol: float = 0.15,
+                         size: int = 2) -> bool:
+
+    half = size // 2
+    left, top = int(x - half), int(y - half)
+
+    # Take screenshot of the region
+    img = pyautogui.screenshot(region=(left, top, size, size))
+
+    # Per-channel tolerance (absolute values, e.g. 15% of 255 ≈ 38)
+    thr = int(round(255 * tol))
+    tr, tg, tb, ta = (target_rgba + (255,))[:4]  # ensure 4 values
+
+    w, h = img.size
+    for ix in range(w):
+        for iy in range(h):
+            px = img.getpixel((ix, iy))
+            r, g, b, *rest = (px + (255,))[:4]
+            a = rest[0] if rest else 255
+
+            if (abs(r - tr) <= thr and
+                abs(g - tg) <= thr and
+                abs(b - tb) <= thr and
+                abs(a - ta) <= thr):
+                return True
+    return False
+
 #=========================================================================#=========================================================================
 def area_has_color_match(x: int, y: int,
                          target_rgba=(86, 231, 199, 255),
@@ -504,6 +535,14 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     pyautogui.mouseUp(button="left")                   # release
 
     time.sleep(3.0)
+
+    """Check if its asking about resolution"""
+    if area_has_color_match_snipe(948, 516):
+        pyautogui.moveTo(948, 516)
+        time.sleep(1.0)
+        pyautogui.leftClick()
+    else:
+        pass
 
     "Random cropping to starttime + offset"
     rng = random.SystemRandom()
