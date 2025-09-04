@@ -646,7 +646,7 @@ def make_edits(media_to_use, audio_duration, target_dir_audio, target_name_audio
     #Checking until export is finished exporting LOL
     
     if audio_duration > 900:
-        pause_wait = 60
+        pause_wait = 90
     elif audio_duration > 400:
         pause_wait = 30
     else:

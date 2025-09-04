@@ -15,7 +15,7 @@ import time
 # ---------------------------
 # CONFIG (paths + OAuth)
 # ---------------------------
-CLIENT_SECRET_FILE = str((Path.cwd().parents[2] / "more-attention" / "yt_apis" / "whatreallyhappened.json").resolve())
+CLIENT_SECRET_FILE = str((Path.cwd().parents[2] / "Documents" / "Github" / "more-attention" / "yt_apis" / "whatreallyhappened.json").resolve())
 
 # Scopes: upload + manage videos/metadata/thumbnail
 SCOPES = [

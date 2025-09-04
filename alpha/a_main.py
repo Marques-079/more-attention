@@ -3,29 +3,11 @@ from datetime import datetime
 import re
 
 from editing import make_edits
-from script import get_script
+from script import generate_script2
 from voice import compile_audio
 from captions import build_mrbeast_captions
 from thumbnail import generate_thumbnail
 from upload_yt import upload_youtube
-
-# ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
-TITLE = "What Really Happened — AITA #42"
-DESCRIPTION = (
-    "In today’s episode, we break down a wild AITA post and what actually happened.\n"
-    "Chapters:\n"
-    "00:00 Intro\n"
-    "00:25 The post\n"
-    "03:10 Reactions\n"
-    "04:55 Verdict"
-)
-HASHTAGS = "#AITA #Reddit #WhatReallyHappened #Shorts"  # Hashtags go in title/description text
-TAGS = ["AITA", "Reddit", "storytime", "analysis"]      # Non-public tags array
-SCHEDULE_AT_LOCAL = None #"2025-09-04 19:30"
-# Choose a mode: "instant" | "scheduled" | "private"
-MODE = "private"
-
-#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
 def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas=True) -> str:
     s = re.sub(r'\s*[\r\n]+\s*', ' ', text)
@@ -43,8 +25,31 @@ def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas
     return s
 print('Operating now...')
 
+"""Activate script building"""
+#text = generate_script2("At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Apart…")
+
+# ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
+TITLE = "[FULL STORY] She Was My Maid of Honor. Now She’s My Ex-Husband’s Fiancée."
+
+DESCRIPTION = "\n".join([
+    "Daily stories to help with life's emotional damage 🗣🔥🔥",
+    "",
+    "",
+    "We write original first person dramas inspired by real life "
+    "We adapt, condense, and sometimes combine elements to build tight, high-stakes stories with fresh "
+    "characters and sharp pacing. Names, details, and timelines are changed. These are our own scripts, "
+    "crafted to entertain. Hit play and enjoy."
+])
+
+HASHTAGS = "#aita  #reddit #redditstoriesfullstory   #redditconfessions  #relationshipstories   #redditfamilydrama #redditreadings #betrayal #relationshipdrama"
+TAGS = ["redditfamilydrama", "reddit", "redditrelationship"]
+SCHEDULE_AT_LOCAL = None #"2025-09-04 19:30"
+# Choose a mode: "instant" | "scheduled" | "private"
+MODE = "private"
+#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
+
 #MOC SCRIPT CALL
-with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/2text.txt", "r", encoding="utf-8") as f:
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/1text.txt", "r", encoding="utf-8") as f:
   text = f.read()
 
 # text = '''
@@ -76,9 +81,10 @@ combined_no_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_clipstore/
 out = build_mrbeast_captions(combined_no_captions_path, output_dir="/Users/marcus/Downloads/reddit1_filmora_captioned", output_name=f"exported_{export_title}", keep_ass = False)
 combined_yes_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_captioned/exported_{export_title}.mp4"
 
-thumbnail_script = "1212 lesgoo" #NEED TO OPTIMISE THIS SO WE GET GOOD CONTENT HERE 
+thumbnail_script = text[:1000]
 
-thumbnail_path = generate_thumbnail(template_choice=1, script_text=thumbnail_script, font_size=46, line_spacing_px=5, font_weight="bold", thickness_px=0.5, use_ellipsis=True)
+#0 = white, 1 = black
+thumbnail_path = generate_thumbnail(template_choice=0, script_text=thumbnail_script, font_size=46, line_spacing_px=6, font_weight="bold", thickness_px=0.5, use_ellipsis=True)
 
 print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
 
