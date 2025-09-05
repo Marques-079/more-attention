@@ -30,7 +30,7 @@ print('Operating now...')
 #text = generate_script2("At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Apart…")
 
 # ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
-TITLE = "[FULL STORY] My Roommate Tried To Ruin My Life, So I Planned A Payback She’ll Never Forget.."
+TITLE = "[FULL STORY] My Boyfriend Secretly Applied For A Loan Under My Name—Now Debt Collectors Are Calling Me."
 
 DESCRIPTION = "\n".join([
     "Daily stories to help with life's emotional damage 🗣🔥🔥",
