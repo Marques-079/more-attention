@@ -642,7 +642,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
     select_file_in_open_dialog(f"/Users/marcus/Downloads/background_short_form_reddit1/{clip_store[background_reddit1][0]}",open_after_select=True)
     time.sleep(1.0)
 
-    pyautogui.moveTo(1096, 700)  
+    pyautogui.moveTo(1096, 681)  
     time.sleep(0.5)
     pyautogui.leftClick()       
 

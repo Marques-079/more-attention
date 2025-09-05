@@ -11,8 +11,6 @@ from datetime import datetime
 import math, random
 from typing import Optional, Tuple
 
-media_options = [(459, 238), (255,358), (453, 357), (253, 478), (453, 475)]
-clip_durations= [7226, 4577, 4813, 3600, 1313]
 
 clip_store = {
     1 : ("minecraft_single_jumps1.mp4", 7200),  #minecraft_single_jumps1.mp4
@@ -405,37 +403,33 @@ def _as_escape(s: str) -> str:
 
 def select_file_in_open_dialog(file_path: str,
                                app_name: str = APP_NAME,
-                               open_after_select: bool = False) -> None:
+                               open_after_select: bool = True) -> None:
     """
-    With an already-open macOS file dialog (Open panel) in `app_name`,
-    navigate to the directory containing `file_path` and select that file.
-
-    - file_path: absolute or user-tilde path to the file to select
-    - app_name: target application that owns the Open panel
-    - open_after_select: if True, presses Return to confirm (Open). Default False = just select.
+    In an already-open NSOpenPanel for `app_name`, select/open `file_path`.
+    - If open_after_select=True (default): type the FULL PATH once and press Return (most reliable).
+    - If False: navigate to directory, wait for the 'Go to Folder' sheet to close,
+      then type the filename (incremental search), without opening.
     """
     p = Path(file_path).expanduser().resolve()
     if not p.exists():
         raise FileNotFoundError(f"Target file does not exist: {p}")
 
-    pdir = _as_escape(p.parent.as_posix())
+    pdir  = _as_escape(p.parent.as_posix())
     fname = _as_escape(p.name)
-
-    # If you want to open the file after selecting it, we optionally hit Return.
-    maybe_open = 'key code 36' if open_after_select else '-- no open'
+    fpath = _as_escape(p.as_posix())
 
     ascript = f'''
-    set appName    to "{_as_escape(app_name)}"
-    set targetDir  to "{pdir}"
+    set appName to "{_as_escape(app_name)}"
+    set targetDir to "{pdir}"
     set targetName to "{fname}"
+    set fullPath  to "{fpath}"
 
     tell application "System Events"
         if (exists process appName) is false then return
         tell process appName
             set frontmost to true
-            delay 0.1
 
-            -- Find the existing Open panel (as a sheet or a dialog window)
+            -- find the open panel (sheet in fullscreen or a dialog window)
             set thePanel to missing value
             repeat 80 times
                 if (exists sheet 1 of window 1) then
@@ -445,41 +439,52 @@ def select_file_in_open_dialog(file_path: str,
                     set thePanel to (first window whose subrole is "AXDialog")
                     exit repeat
                 end if
-                delay 0.15
+                delay 0.1
             end repeat
             if thePanel is missing value then return
 
-            -- Bring up "Go to the folder…" inside the open panel
+            -- open "Go to the folder…"
             keystroke "g" using {{command down, shift down}}
 
-            -- Wait for the small sheet attached to the panel
+            -- wait for the small sheet within the panel
             set goSheet to missing value
             repeat 80 times
                 if (exists sheet 1 of thePanel) then
                     set goSheet to sheet 1 of thePanel
                     exit repeat
                 end if
-                delay 0.1
+                delay 0.05
             end repeat
             if goSheet is missing value then return
 
-            -- Type the directory path and confirm
-            delay 0.1
-            keystroke "a" using {{command down}} -- select all (if anything present)
-            keystroke targetDir
-            key code 36  -- Return to navigate
+            -- TYPE EITHER FULL PATH (open) OR JUST DIR (select later)
+            if {str(open_after_select).lower()} then
+                -- Most robust: enter full path once and press Return (opens immediately)
+                delay 0.1
+                keystroke fullPath
+                key code 36  -- Return
+            else
+                -- Navigate to the directory first
+                delay 0.1
+                keystroke targetDir
+                key code 36  -- Return
 
-            -- Give it a moment to load contents
-            delay 0.3
+                -- Wait until the 'Go to Folder' sheet actually closes
+                repeat 120 times
+                    if (exists sheet 1 of thePanel) is false then exit repeat
+                    delay 0.05
+                end repeat
 
-            -- Type the exact file name to focus/select it (incremental search)
-            keystroke targetName
-            delay 0.05
-            {maybe_open}
+                -- Now the file list has focus; incremental-search the filename
+                delay 0.1
+                keystroke targetName
+                -- Don't press Return; caller wanted "select only"
+            end if
         end tell
     end tell
     '''
     subprocess.run(["osascript", "-e", ascript], check=False)
+
 
 
 
@@ -630,7 +635,7 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
 
     time.sleep(2.0)
     #Location to drop into time
-    end_x1, end_y1     = 225, 785  
+    end_x1, end_y1     = 95, 735  
     time.sleep(2.0)
     pyautogui.moveTo(452, 231, duration=0.15)  # hover to start
     time.sleep(0.15)
@@ -649,15 +654,25 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
     else:
         pass
 
+    """Shift edit lines"""
+    end_x1, end_y1     = 522, 577  
+    time.sleep(2.0)
+    pyautogui.moveTo(521, 555, duration=0.15)  # hover to start
+    time.sleep(0.15)
+    pyautogui.mouseDown(button="left")                 # press & hold
+    pyautogui.moveTo(end_x1, end_y1, duration=0.25)
+    time.sleep(0.15)      # drag while holding
+    pyautogui.mouseUp(button="left")  
+
     "Random cropping to starttime + offset"
     rng = random.SystemRandom()
     start_s, tc = pick_random_crop_start(duration=audio_duration, clip_total=clip_store[background_reddit1][1], buffer_s = 60, integer_seconds=True,rng = rng)
     print(f"Picked start time: {start_s:.3f} s = {tc}")
     start_s = math.floor(start_s // 5) - 1
 
-    #Pixels 114 -> 5 seconds move around
+    #Pixels 115 -> 5 seconds move around
     time.sleep(2.0)
-    scroll_left_incremental(start=(500, 700), pixels=114 * start_s, steps=start_s, pause=0.0005)
+    scroll_left_incremental(start=(500, 700), pixels=115, steps=start_s, pause=0.0005)
 
     #Crop here wit offset
     time.sleep(2.0)
@@ -668,6 +683,12 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
     time.sleep(2.0)
     pyautogui.moveTo(214, 700)  # hover to start
     pyautogui.leftClick()
+
+    #Delete
+    time.sleep(2.0)
+    pyautogui.moveTo(156, 754)  # hover to start
+    pyautogui.leftClick()
+    pyautogui.hotkey("backspace")
 
     #Delete
     time.sleep(2.0)
@@ -703,7 +724,7 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
     adjust_clip_duration(audio_duration)
 
     """Rescoll to realign after random clip cropping"""
-    scroll_right_incremental(start=(500, 700), pixels=114 * start_s, steps= math.floor(start_s * 1.2), pause=0.0005)
+    scroll_right_incremental(start=(500, 700), pixels=114 * start_s, steps= math.floor(start_s), pause=0.0005)
 
 
     #Move mouse to prject relevant area zone
@@ -762,13 +783,13 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
 
     #Maximise resolution quality set to high
 
-    pyautogui.moveTo(906, 560)
+    pyautogui.moveTo(906, 520)
     time.sleep(0.5)
-    pyautogui.leftClick(906, 560)
+    pyautogui.leftClick(906, 520)
 
-    pyautogui.moveTo(909, 661)
+    pyautogui.moveTo(909, 620)
     time.sleep(0.5)
-    pyautogui.leftClick(909, 661)
+    pyautogui.leftClick(909, 620)
 
     '''
     Insert here to boost resolution -> Inflates storage

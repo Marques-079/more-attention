@@ -115,16 +115,20 @@ thumbnail_path = generate_thumbnail(
 w, h, dur = assert_is_short_and_vertical(combined_yes_captions_path, max_seconds=180)  # keep 60 if you prefer stricter
 print(f"Final render: {w}x{h}, {dur:.2f}s -> OK for Shorts.")
 
+res = input("Upload to yt?")
 # --- Upload (uncomment when ready) ---
-upload_youtube2(
-    combined_yes_captions_path,
-    thumbnail_path,
-    TITLE,
-    DESCRIPTION,
-    HASHTAGS,
-    TAGS,
-    MODE,
-    SCHEDULE_AT_LOCAL,
-    channel_api_json="whatreallyhappened.json"
-)
-print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
+if res:
+    upload_youtube2(
+        combined_yes_captions_path,
+        thumbnail_path,
+        TITLE,
+        DESCRIPTION,
+        HASHTAGS,
+        TAGS,
+        MODE,
+        SCHEDULE_AT_LOCAL,
+        channel_api_json="whatreallyhappened.json"
+    )
+    print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
+else:
+    print("Skipped upload.")

@@ -50,11 +50,11 @@ MODE = "private"
 #=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
 #MOC SCRIPT CALL
-# with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
-#   text = f.read()
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
+  text = f.read()
 
-text = '''
-Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
+# text = '''
+# Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once. I am up at 2am coding this project what the lock in?!, aight still got to configure the prompting also YIKES'''
 
 text = clean_script_text(text)
 
@@ -73,7 +73,7 @@ target_name_audio = file_path.name               # e.g. "voice_20250902_141530.w
 
 #print(target_name_audio)
 
-export_title = make_edits(1, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
+export_title = make_edits(7, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
 
 #print(export_title)
 
@@ -81,7 +81,6 @@ combined_no_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_clipstore/
 
 out = build_mrbeast_captions(combined_no_captions_path, output_dir="/Users/marcus/Downloads/reddit1_filmora_captioned", output_name=f"exported_{export_title}", keep_ass = False)
 combined_yes_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_captioned/exported_{export_title}.mp4"
-
 thumbnail_script = text[:1000]
 
 #0 = white, 1 = black
@@ -90,20 +89,20 @@ thumbnail_path = generate_thumbnail(template_choice=0, script_text=thumbnail_scr
 print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
 
 #Auto upload.
-upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
+#upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
 
 
 '''Double checking before uploading logic'''
-# post_youtube = input("Do you want to post this to Youtube using API?")
+post_youtube = input("Do you want to post this to Youtube using API?")
 
-# if post_youtube.lower() == "y":
-#     #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
+if post_youtube.lower() == "y":
+    #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
 
-#     #Channel specific v2 of upload function 
-#     upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
-# else:
-#     print("Not uploading to YouTube.")
-#     pass
+    #Channel specific v2 of upload function 
+    upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
+else:
+    print("Not uploading to YouTube.")
+    pass
 
 
 #TODO 
