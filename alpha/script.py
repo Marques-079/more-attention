@@ -1,6 +1,10 @@
+print("1")
 import os
+print("2")
 from dotenv import load_dotenv, find_dotenv
+print("3")
 from openai import OpenAI
+print("4")
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
 

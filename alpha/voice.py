@@ -1,9 +1,17 @@
+print("0")
 from kokoro import KPipeline
+print("1")
 from IPython.display import display, Audio
+print
 import soundfile as sf
+print("3")
 import io
+print("4")
 import numpy as np
+print("5")
 
+
+print("Defining functions...")
 def compile_audio(text):
     pipeline = KPipeline(lang_code='a')   # 'a' = American English
     voice   = "am_adam"
