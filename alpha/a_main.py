@@ -50,7 +50,7 @@ MODE = "private"
 #=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
 #MOC SCRIPT CALL
-with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/3text.txt", "r", encoding="utf-8") as f:
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/4text.txt", "r", encoding="utf-8") as f:
   text = f.read()
 
 # text = '''
