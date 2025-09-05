@@ -1,186 +1,153 @@
-#!/usr/bin/env python3
-from PIL import Image, ImageDraw, ImageFont
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
 
-# ---------- CONFIG ----------
-TEMPLATES = {
-    0: "/Users/marcus/Downloads/WRH_white.png",
-    1: "/Users/marcus/Downloads/WRH_black.png",
-}
-OUT_DIR = Path("/Users/marcus/Downloads/video_thumbnails_reddit1")
+def _ts(fmt="%Y%m%d_%H%M%S"): 
+    return datetime.now().strftime(fmt)
 
-# Text box: x=40, y=260, width=1200, height=450
-BOX_X, BOX_Y, BOX_W, BOX_H = 40, 260, 1200, 360
-# ---------------------------
+def _ensure_dir(p: str | Path) -> Path:
+    p = Path(p); p.mkdir(parents=True, exist_ok=True); return p
 
-def load_arial_font(font_size: int, weight: str = "regular"):
-    weight = (weight or "regular").lower()
-    if weight == "bold":
-        candidates = [
-            "/Library/Fonts/Arial Bold.ttf",
-            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-            "/System/Library/Fonts/Arial Bold.ttf",
-        ]
-    else:
-        candidates = [
-            "/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Supplemental/Arial.ttf",
-            "/System/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Arial Unicode.ttf",
-        ]
-    for p in candidates:
-        if Path(p).exists():
-            return ImageFont.truetype(p, font_size)
-    return ImageFont.load_default()
+def _find_arial() -> Path | None:
+    # Common macOS / Windows locations
+    for p in [
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Arial.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/Arial.ttf",
+    ]:
+        if Path(p).exists(): return Path(p)
+    return None
 
-# ---- robust measurements (support older Pillow too) ----
-def _bbox(draw, text, font, thickness_px: int):
-    try:
-        return draw.textbbox((0, 0), text, font=font, stroke_width=thickness_px)
-    except TypeError:
-        b = draw.textbbox((0, 0), text, font=font)
-        return (b[0], b[1], b[2] + 2*thickness_px, b[3] + thickness_px)
+def render_black_topleft(
+    image_path: str | Path,
+    text: str,
+    box: tuple[int, int, int, int],      # (x, y, w, h)
+    out_dir: str | Path = "/Users/marcus/Downloads/shorts_thumbnails_storage",
+    font_size: int = 160,                 # will shrink-to-fit
+    min_font: int = 24,
+    line_spacing: float = 1.08,
+    letter_spacing_px: int = 0,           # can be negative (tighten letters)
+    space_extra_px: int = 0,              # added to spaces between words
+    bold_px: int = 0,                     # thickness via stroke
+    padding_px: int = 8,
+    font_path: str | Path | None = None,  # None => auto-find Arial
+    color=(0, 0, 0),
+) -> str:
+    """
+    Draws plain black Arial from the TOP-LEFT of `box`, word-wrapped.
+    `letter_spacing_px` applies between letters inside words (can be negative).
+    `space_extra_px` adds extra pixels to spaces (word gaps).
+    Returns saved PNG path.
+    """
+    image_path = Path(image_path); assert image_path.exists(), f"Image not found: {image_path}"
+    out_dir = _ensure_dir(out_dir)
 
-def _text_width(draw, text, font, thickness_px: int) -> int:
-    b = _bbox(draw, text, font, thickness_px)
-    return b[2] - b[0]
+    if font_path is None:
+        font_path = _find_arial()
+        if not font_path:
+            raise FileNotFoundError("Arial.ttf not found. Pass `font_path` to a valid .ttf.")
+    font_path = Path(font_path); assert font_path.exists(), f"Font not found: {font_path}"
 
-def _line_height(draw, text, font, thickness_px: int) -> int:
-    b = _bbox(draw, text, font, thickness_px)
-    return b[3] - b[1]
-# -------------------------------------------------------
-
-def measure_text_height(lines, font, line_spacing_px, draw, thickness_px: int = 0) -> int:
-    heights = [_line_height(draw, line, font, thickness_px) for line in lines]
-    return (sum(heights) + line_spacing_px * (len(lines) - 1)) if heights else 0
-
-def wrap_to_fit(words, draw, font, max_width, max_height, line_spacing_px, thickness_px: int):
-    """Greedily add full words while re-wrapping; stop right before height overflows."""
-    used = 0
-    lines = []
-    for i in range(1, len(words) + 1):
-        wrapped, current = [], []
-        for w in words[:i]:
-            test = (" ".join(current + [w])).strip()
-            if _text_width(draw, test, font, thickness_px) <= max_width:
-                current.append(w)
-            else:
-                if current:
-                    wrapped.append(" ".join(current))
-                # if a single word is wider than the line, char-split it
-                if _text_width(draw, w, font, thickness_px) > max_width:
-                    piece = ""
-                    for ch in w:
-                        if _text_width(draw, piece + ch, font, thickness_px) <= max_width:
-                            piece += ch
-                        else:
-                            if piece:
-                                wrapped.append(piece)
-                            piece = ch
-                    current = [piece] if piece else []
-                else:
-                    current = [w]
-        if current:
-            wrapped.append(" ".join(current))
-
-        h = measure_text_height(wrapped, font, line_spacing_px, draw, thickness_px)
-        if h <= max_height:
-            lines = wrapped
-            used = i
-        else:
-            break
-    return lines, used
-
-def _apply_ellipsis(lines, draw, font, max_width, thickness_px: int, ellipsis="…"):
-    """Append ellipsis to last line, trimming by words (then chars) so it fits."""
-    if not lines:
-        return lines
-    last = lines[-1]
-    # quick fit
-    if _text_width(draw, last + ellipsis, font, thickness_px) <= max_width:
-        lines[-1] = last + ellipsis
-        return lines
-
-    # word-level backoff
-    tokens = last.split(" ")
-    while len(tokens) > 1:
-        tokens.pop()  # drop last word
-        candidate = " ".join(tokens)
-        if _text_width(draw, candidate + ellipsis, font, thickness_px) <= max_width:
-            lines[-1] = candidate + ellipsis
-            return lines
-
-    # single long word: char-level trim
-    base = tokens[0] if tokens else last
-    trimmed = ""
-    for ch in base:
-        if _text_width(draw, trimmed + ch + ellipsis, font, thickness_px) <= max_width:
-            trimmed += ch
-        else:
-            break
-    if trimmed:
-        lines[-1] = trimmed + ellipsis
-    else:
-        # fallback: ellipsis alone if it fits
-        if _text_width(draw, ellipsis, font, thickness_px) <= max_width:
-            lines[-1] = ellipsis
-        # else leave as-is (shouldn’t happen with reasonable sizes)
-    return lines
-
-def generate_thumbnail(
-    template_choice: int,
-    script_text: str,
-    font_size: int = 72,
-    font_color: tuple = (0, 0, 0),
-    line_spacing_px: int = 6,
-    font_weight: str = "regular",    # "regular" | "bold"
-    thickness_px: int = 0,           # extra thickness via same-color stroke
-    use_ellipsis: bool = True
-) -> Path:
-    if template_choice not in TEMPLATES:
-        raise ValueError("template_choice must be 0 (white) or 1 (black)")
-    template_path = Path(TEMPLATES[template_choice])
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template not found: {template_path}")
-
-    if template_choice == 1 and font_color == (0, 0, 0):
-        font_color = (255, 255, 255)
-
-    img = Image.open(template_path).convert("RGBA")
+    img = Image.open(image_path).convert("RGBA")
     draw = ImageDraw.Draw(img)
-    font = load_arial_font(font_size, weight=font_weight)
 
-    words = script_text.strip().split()
-    lines, used_words = wrap_to_fit(
-        words, draw, font,
-        max_width=BOX_W,
-        max_height=BOX_H,
-        line_spacing_px=line_spacing_px,
-        thickness_px=thickness_px
-    )
+    x, y, bw, bh = box
+    max_w = max(1, bw - 2 * padding_px)
+    max_h = max(1, bh - 2 * padding_px)
 
-    # If we didn't consume all words, smart-crop and add ellipsis to the last line
-    if use_ellipsis and used_words < len(words) and lines:
-        lines = _apply_ellipsis(lines, draw, font, BOX_W, thickness_px)
+    # ---------- measurement helpers ----------
+    def char_bbox(s: str, fnt: ImageFont.FreeTypeFont):
+        return draw.textbbox((0, 0), s, font=fnt, stroke_width=bold_px)
 
-    # draw lines
-    cursor_y = BOX_Y
-    for line in lines:
-        try:
-            draw.text((BOX_X, cursor_y), line, font=font,
-                      fill=font_color, stroke_width=thickness_px, stroke_fill=font_color)
-        except TypeError:  # very old Pillow: no stroke args
-            draw.text((BOX_X, cursor_y), line, font=font, fill=font_color)
-        cursor_y += _line_height(draw, line, font, thickness_px) + line_spacing_px
+    def char_size(ch: str, fnt: ImageFont.FreeTypeFont) -> tuple[int, int]:
+        b = char_bbox(ch, fnt)
+        return b[2] - b[0], b[3] - b[1]
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base = "WRH_white" if template_choice == 0 else "WRH_black"
-    out_path = OUT_DIR / f"{base}_{stamp}.png"
-    img.save(out_path)
-    print(f"Saved thumbnail: {out_path}")
-    print(f"Words used: {used_words}/{len(words)}  (ellipsis added: {use_ellipsis and used_words < len(words)})")
-    return out_path
+    def string_width(s: str, fnt: ImageFont.FreeTypeFont) -> int:
+        if not s: return 0
+        w = 0
+        for i, ch in enumerate(s):
+            cw, _ = char_size(ch, fnt)
+            w += cw
+            if i < len(s) - 1:
+                nxt = s[i + 1]
+                if ch == ' ':
+                    # widen spaces themselves
+                    w += max(0, space_extra_px)
+                else:
+                    # letter spacing only if the next thing isn't a space
+                    if nxt != ' ':
+                        w += letter_spacing_px
+        return max(0, w)
 
+    def line_height(fnt: ImageFont.FreeTypeFont) -> int:
+        b = char_bbox("Hg", fnt)
+        raw = max(1, b[3] - b[1])
+        return int(round(raw * line_spacing))
 
+    def wrap_words(fnt: ImageFont.FreeTypeFont, s: str, maxw: int) -> list[str]:
+        words = s.split()
+        lines, cur = [], ""
+        for w in words:
+            cand = (cur + " " + w).strip() if cur else w
+            if string_width(cand, fnt) <= maxw:
+                cur = cand
+            else:
+                if cur: lines.append(cur)
+                cur = w
+        if cur: lines.append(cur)
+        return lines
+
+    def block_dims(fnt: ImageFont.FreeTypeFont, lines: list[str]) -> tuple[int, int]:
+        lh = line_height(fnt)
+        H = len(lines) * lh
+        W = 0
+        for ln in lines:
+            W = max(W, string_width(ln, fnt))
+        return W, H
+
+    # ---------- fit loop ----------
+    size = max(min_font, int(font_size))
+    fnt = ImageFont.truetype(str(font_path), size)
+    lines = wrap_words(fnt, text, max_w)
+    W, H = block_dims(fnt, lines)
+
+    while (W > max_w or H > max_h) and size > min_font:
+        size -= 2
+        fnt = ImageFont.truetype(str(font_path), size)
+        lines = wrap_words(fnt, text, max_w)
+        W, H = block_dims(fnt, lines)
+
+    # ---------- draw top-left ----------
+    tx = x + padding_px
+    ty = y + padding_px
+    lh = line_height(fnt)
+
+    for ln in lines:
+        cx = tx
+        for i, ch in enumerate(ln):
+            draw.text(
+                (cx, ty),
+                ch,
+                font=fnt,
+                fill=color,
+                stroke_width=max(0, bold_px),
+                stroke_fill=color,
+            )
+            cw, _ = char_size(ch, fnt)
+            advance = cw
+            if i < len(ln) - 1:
+                nxt = ln[i + 1]
+                if ch == ' ':
+                    advance += max(0, space_extra_px)
+                else:
+                    if nxt != ' ':
+                        advance += letter_spacing_px
+            cx += advance
+        ty += lh
+
+    out_path = out_dir / f"thumb_black_tl_{_ts()}.png"
+    img.save(out_path, "PNG", optimize=True)
+    return str(out_path)

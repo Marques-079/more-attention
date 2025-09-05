@@ -1,16 +1,14 @@
 # === CONFIG ==============================================================
+
 from pathlib import Path
 import tempfile
 
-
 # Where to save the rendered video:
-OUTPUT_DIR = Path.home() / "Downloads" / "reddit1_filmora_captioned" 
+OUTPUT_DIR = Path.home() / "Downloads" / "reddit1_filmora_captioned"
 
 # Filename pattern (placeholders: {stem}=input filename stem, {ts}=timestamp, {anim}=ANIM)
 FILENAME_TEMPLATE = "exported_{ts}.mp4"
 
-
-#INPUT_VIDEO       = Path.home() / "Downloads" / "reddit1_filmora_clipstore" / "tester88888.mp4"
 MODEL_NAME        = "small.en"       # tiny/base/small/medium/large-v3; *.en faster for English
 
 # Caption look
@@ -18,26 +16,24 @@ FONT_SIZE         = 210
 UPPERCASE         = True
 
 # Outline controls
-BORDER_PX         = 12.0             # base outline thickness (px)
-SHADOW_PX         = 2.0              # shadow strength
-BLUR_PX           = 0.0              # small blur reduces shimmer; try 0.3–0.8 if edges flicker
-STABILIZE_OUTLINE = True             # <<< turn this on to animate \bord with scale
+BORDER_PX         = 12.0
+SHADOW_PX         = 2.0
+BLUR_PX           = 0.0
+STABILIZE_OUTLINE = True
 
 # Timing hyperparams
 MIN_CAPTION_SEC   = 0.30
 CUT_AHEAD_SEC     = 0.00
 TAIL_HOLD_SEC     = 1.20
 
-# Grouping hyperparams (control words/characters per caption)
+# Grouping hyperparams
 MAX_WORDS_PER_CAP = 1
 MAX_CHARS_PER_CAP = None
 MAX_GAP_SEC       = 1.20
 
 # Animation
-# ANIM choices: "none","fade","pop","zoom","bounce","slide_up","slide_down",
-#               "slide_left","slide_right","rotate","inflate","inflate_soft"
 ANIM              = "inflate"
-ANIM_IN_MS        = 20000   # your original long ramp; try 200–400 for subtle pop
+ANIM_IN_MS        = 20000
 ANIM_OUT_MS       = 50
 
 # Fonts
@@ -46,27 +42,33 @@ CUSTOM_FONT_DIR   = Path.home() / "Documents" / "mrbeast_caps" / "fonts"
 # Rendering safety
 AUTO_PLAYRES      = True             # match ASS PlayRes to actual video resolution
 YUV444_RENDER     = True             # render subs in 4:4:4 to stabilize edges, then downsample
+
+# --- NEW: Reddit intro card overlay --------------------------------------
+INTRO_CARD_SRC     = Path("/Users/marcus/Downloads/Thumb_shorts_white")   # file OR folder; None disables
+INTRO_ENABLED      = True
+INTRO_SECS         = 3.0
+INTRO_FADE         = 0.30
+INTRO_SCALE        = 0.92
+INTRO_CROP_BOTTOM  = 0.12
+INTRO_OFFSET_X     = 0
+INTRO_OFFSET_Y     = 0
+INTRO_ROUND_PX     = 40   
 # ========================================================================
 
 import os, subprocess, shutil, platform, re, sys
 from datetime import timedelta
 from faster_whisper import WhisperModel
-import re
-from datetime import datetime 
+from datetime import datetime
 
 def timestamp(fmt: str = "%Y%m%d_%H%M%S") -> str:
-    """Current local time formatted for filenames."""
     return datetime.now().strftime(fmt)
 
 def sanitize_stem(stem: str) -> str:
-    """Make a filesystem-safe stem."""
     return re.sub(r'[^A-Za-z0-9_.-]+', '_', stem).strip('_')
 
 def ensure_dir(p: Path) -> Path:
-    """Create directory if needed and return it."""
     p.mkdir(parents=True, exist_ok=True)
     return p
-
 
 # ---------- probe video resolution ----------
 def probe_resolution(video_path: Path) -> tuple[int, int]:
@@ -77,15 +79,15 @@ def probe_resolution(video_path: Path) -> tuple[int, int]:
     try:
         out = subprocess.check_output(cmd, text=True).strip()
         w, h = map(int, out.split("x"))
+        print(f"[info] probed resolution: {w}x{h}")
         return w, h
     except Exception:
-        # fallback
+        print("[warn] ffprobe failed, falling back to 1920x1080")
         return 1920, 1080
 
-# centers derived later once we know resolution
 CENTER_X, CENTER_Y = None, None
 
-# ---------- load Whisper with a supported compute_type ----------
+# ---------- load Whisper ----------
 import platform as _pf
 def load_whisper_auto(model_name: str):
     osname = _pf.system()
@@ -101,7 +103,7 @@ def load_whisper_auto(model_name: str):
             last = e
     raise last
 
-# ---------- font: use any .ttf/.otf in CUSTOM_FONT_DIR ----------
+# ---------- font ----------
 def pick_custom_font(font_dir: Path):
     font_dir.mkdir(parents=True, exist_ok=True)
     candidates = list(font_dir.glob("*.ttf")) + list(font_dir.glob("*.otf"))
@@ -114,7 +116,7 @@ def pick_custom_font(font_dir: Path):
     font_file = candidates[0]
     family = None
     try:
-        from fontTools.ttLib import TTFont  # optional (pip install fonttools)
+        from fontTools.ttLib import TTFont
         tt = TTFont(font_file)
         names = {n.nameID: n.toUnicode() for n in tt["name"].names if n.toUnicode()}
         family = names.get(1) or names.get(4)
@@ -124,7 +126,7 @@ def pick_custom_font(font_dir: Path):
     print("[font] Font family set to:", family)
     return font_file, family
 
-# ---------- ASS header template (filled later with resolution) ----------
+# ---------- ASS header ----------
 ASS_HEADER_TMPL = """[Script Info]
 ScriptType: v4.00+
 PlayResX: {play_w}
@@ -149,39 +151,30 @@ def _fmt_time(t: float) -> str:
     s, cs = divmod(rem, 100)
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
-# compute start/end scales & animated \bord when stabilizing
 def _scale_spec_for_anim(name: str):
     name = (name or "none").lower()
-    # start_scale, end_scale
     if name in ("inflate", "inflate_soft", "pop"):
         return 80, 100
     if name == "zoom":
         return 60, 100
-    # slide/rotate/fade/none: no scale change
     return 100, 100
 
 def _fmt_float(x: float) -> str:
-    # compact float formatting for ASS tags
     return f"{x:.2f}".rstrip("0").rstrip(".")
 
 def anim_tag(cx: int, cy: int, name: str, in_ms: int, out_ms: int,
              border_px: float, stabilize_outline: bool, blur_px: float) -> str:
-    # snap to pixel to reduce subpixel shimmer
     cx, cy = int(round(cx)), int(round(cy))
     s0, s1 = _scale_spec_for_anim(name)
-    # outline start/end if stabilizing (inverse proportional to scale)
     if stabilize_outline and (s0 != s1):
         bord0 = border_px * (s0 / 100.0)
         bord1 = border_px * (s1 / 100.0)
         bord_tag0 = rf"\bord{_fmt_float(bord0)}"
         bord_anim = rf"\t(0,{in_ms},\bord{_fmt_float(bord1)})"
     else:
-        bord0 = border_px
-        bord_tag0 = rf"\bord{_fmt_float(bord0)}"
+        bord_tag0 = rf"\bord{_fmt_float(border_px)}"
         bord_anim = ""
-
     blur_tag = (rf"\blur{_fmt_float(blur_px)}" if blur_px and blur_px > 0 else "")
-
     name = (name or "none").lower()
     if name == "none":
         return rf"{{\an5\pos({cx},{cy}){bord_tag0}{blur_tag}}}"
@@ -288,15 +281,38 @@ def build_center_caption_events(lines,
         events.append(f"Dialogue: 0,{_fmt_time(t0)},{_fmt_time(t1)},Beast,,0,0,0,,{ov}{text}")
     return events
 
-import tempfile
+# ---------- resolve an intro image (file OR folder) -------------
+def resolve_intro_image(src: Path | None) -> Path | None:
+    if not src:
+        print("[debug] resolve_intro_image: src=None")
+        return None
+    src = Path(src).expanduser()
+    print(f"[debug] resolve_intro_image: candidate='{src}' exists={src.exists()} is_dir={src.is_dir()}")
+    if src.exists():
+        if src.is_file():
+            return src
+        # folder: pick first image
+        allowed = {".png",".jpg",".jpeg",".webp",".bmp"}
+        imgs = [f for f in sorted(src.iterdir()) if f.is_file() and f.suffix.lower() in allowed]
+        return imgs[0] if imgs else None
+    return None
 
-def beta_captions(INPUT_VIDEO) -> str:
-    # ---------- 1) Transcribe (word timestamps) ----------
+# ---------- MAIN ----------------------------------------------------------
+def beta_captions(INPUT_VIDEO: str | Path,
+                  intro_card_src: Path | None = INTRO_CARD_SRC,
+                  intro_enabled: bool = INTRO_ENABLED,
+                  intro_secs: float = INTRO_SECS,
+                  intro_fade: float = INTRO_FADE,
+                  intro_scale: float = INTRO_SCALE,
+                  intro_crop_bottom: float = INTRO_CROP_BOTTOM,
+                  intro_offset_x: int = INTRO_OFFSET_X,
+                  intro_offset_y: int = INTRO_OFFSET_Y,
+                  intro_round_px: int = INTRO_ROUND_PX) -> str:
+
     video_path = Path(INPUT_VIDEO).expanduser().resolve()
     assert video_path.exists(), f"Video not found: {video_path}"
     print("[info] video:", video_path)
 
-    # Determine ASS PlayRes + default center based on actual video dimensions
     PLAY_W, PLAY_H = probe_resolution(video_path) if AUTO_PLAYRES else (1920, 1080)
     if CENTER_X is None or CENTER_Y is None:
         cx, cy = PLAY_W // 2, PLAY_H // 2
@@ -320,8 +336,8 @@ def beta_captions(INPUT_VIDEO) -> str:
 
     print(f"[info] words captured: {len(words)}")
 
-    # ---------- 2) Build ASS in-memory ------------------------
-    font_file, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
+    # ---------- Build ASS ----------
+    _, FONT_NAME = pick_custom_font(CUSTOM_FONT_DIR)
     ASS_HEADER = ASS_HEADER_TMPL.format(
         play_w=PLAY_W, play_h=PLAY_H, font=FONT_NAME, size=FONT_SIZE,
         border=_fmt_float(BORDER_PX), shadow=_fmt_float(SHADOW_PX)
@@ -352,18 +368,15 @@ def beta_captions(INPUT_VIDEO) -> str:
     )
     ass_text = ASS_HEADER + "\n".join(ass_events)
 
-    # ---------- 3) Decide output path (dir + timestamped filename) ----------
-    out_dir = ensure_dir(Path(OUTPUT_DIR))   # <-- EDIT save folder here
-    safe_stem = sanitize_stem(video_path.stem)
-    ts = timestamp()                         # e.g. 20250904_211530
-    out_name = FILENAME_TEMPLATE.format(stem=safe_stem, ts=ts, anim=ANIM)
+    # ---------- Output path ----------
+    out_dir = ensure_dir(Path(OUTPUT_DIR))
+    ts = timestamp()
+    out_name = FILENAME_TEMPLATE.format(stem=sanitize_stem(video_path.stem), ts=ts, anim=ANIM)
     out_video = (out_dir / out_name).resolve()
-    out_tmp = out_video.with_suffix(".tmp.mp4")  # safer atomic write
-
+    out_tmp = out_video.with_suffix(".tmp.mp4")
     print("[info] OUTPUT_DIR:", out_dir)
     print("[info] Output file:", out_video)
 
-    # ---------- 4) Burn captions with FFmpeg (temporary .ass; auto-delete) ---
     if not shutil.which("ffmpeg"):
         raise SystemExit("FFmpeg not found on PATH. Install it and rerun.")
 
@@ -371,51 +384,120 @@ def beta_captions(INPUT_VIDEO) -> str:
 
     tmp_path = None
     try:
+        # write ASS to temp file
         with tempfile.NamedTemporaryFile("w", suffix=".ass", delete=False, encoding="utf-8") as tmp:
             tmp.write(ass_text)
             tmp.flush()
             tmp_path = Path(tmp.name)
 
-        if YUV444_RENDER:
-            vf_arg = f"format=yuv444p,ass={tmp_path.as_posix()}{fontsdir_arg},format=yuv420p"
-        else:
-            vf_arg = f"ass={tmp_path.as_posix()}{fontsdir_arg}"
-
         vcodec = "h264_videotoolbox" if platform.system() == "Darwin" else "libx264"
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", str(video_path),
-            "-vf", vf_arg,
-            "-c:v", vcodec, "-preset", "veryfast", "-crf", "18",
-            "-c:a", "copy",
-            str(out_tmp)
-        ]
+
+        intro_img = resolve_intro_image(intro_card_src) if intro_enabled else None
+        print(f"[debug] intro_enabled={intro_enabled} intro_secs={intro_secs} intro_fade={intro_fade}")
+        print(f"[debug] resolved intro image: {intro_img}")
+
+        if intro_img and intro_secs > 0:
+            # subtitles chain for base video
+            base_chain = (f"format=yuv444p,ass={tmp_path.as_posix()}{fontsdir_arg}"
+                        if YUV444_RENDER else
+                        f"ass={tmp_path.as_posix()}{fontsdir_arg}")
+
+            fade_d     = max(0.0, min(float(intro_fade), float(intro_secs)))
+            crop_keep  = max(0.0, min(1.0, 1.0 - float(intro_crop_bottom)))
+            scale_frac = max(0.05, min(2.0, float(intro_scale)))
+            scaled_w   = int(round(PLAY_W * scale_frac))
+            if scaled_w % 2: scaled_w -= 1
+            if scaled_w < 2: scaled_w = 2
+
+            enable_expr = f"between(t\\,0\\,{intro_secs})"  # escape commas
+
+            round_px = max(0, int(intro_round_px))
+            print(f"[debug] overlay params: crop_keep={crop_keep} scale_frac={scale_frac} "
+                f"scaled_w={scaled_w} fade_d={fade_d} offsets=({intro_offset_x},{intro_offset_y}) "
+                f"round_px={round_px}")
+
+            # Build the card-processing chain; if rounding requested, compute an alpha mask via geq()
+            if round_px > 0:
+                # alpha expression: 255 inside rounded-rect, 0 outside
+                aexpr = (
+                    f"if(lte(hypot("
+                    f"if(lt(X,{round_px}),{round_px}-X,if(lt(W-X,{round_px}),{round_px}-(W-X),0)),"
+                    f"if(lt(Y,{round_px}),{round_px}-Y,if(lt(H-Y,{round_px}),{round_px}-(H-Y),0))"
+                    f"),{round_px}),255,0)"
+                )
+                card_chain = (
+                    f"[cardc]scale={scaled_w}:-1[card_s];"
+                    f"[card_s]format=rgba,"
+                    f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='{aexpr}'[card_r];"
+                    f"[card_r]fade=t=out:st={intro_secs - fade_d}:d={fade_d}:alpha=1[cardf];"
+                )
+            else:
+                card_chain = (
+                    f"[cardc]scale={scaled_w}:-1[cards];"
+                    f"[cards]fade=t=out:st={intro_secs - fade_d}:d={fade_d}:alpha=1[cardf];"
+                )
+
+            fc = (
+                f"[0:v]{base_chain}[base];"
+                f"[1:v]format=rgba,crop=iw:ih*{crop_keep}:0:0[cardc];"
+                f"{card_chain}"
+                f"[base][cardf]overlay="
+                f"x=(main_w-overlay_w)/2+{int(intro_offset_x)}:"
+                f"y=(main_h-overlay_h)/2+{int(intro_offset_y)}:"
+                f"enable='{enable_expr}'[v];"
+                f"[v]format=yuv420p[vout]"
+            )
+            print("[debug] filter_complex >>>\n" + fc + "\n<<< end filter_complex")
+
+
+            cmd = [
+                "ffmpeg","-y","-hide_banner","-loglevel","info",
+                "-i", str(video_path),
+                "-loop","1","-t", f"{intro_secs + 0.5}","-i", str(intro_img),
+                "-filter_complex", fc,
+                "-map","[vout]","-map","0:a?",
+                "-c:v", vcodec, "-preset","veryfast","-crf","18",
+                "-c:a","copy",
+                "-movflags","+faststart",
+                str(out_tmp)
+            ]
+        else:
+            vf_arg = (f"format=yuv444p,ass={tmp_path.as_posix()}{fontsdir_arg},format=yuv420p"
+                      if YUV444_RENDER else
+                      f"ass={tmp_path.as_posix()}{fontsdir_arg}")
+            cmd = [
+                "ffmpeg","-y","-hide_banner","-loglevel","info",
+                "-i", str(video_path),
+                "-vf", vf_arg,
+                "-c:v", vcodec, "-preset","veryfast","-crf","18",
+                "-c:a","copy",
+                "-movflags","+faststart",
+                str(out_tmp)
+            ]
 
         print("[info] ffmpeg cmd:", " ".join(cmd))
         run = subprocess.run(cmd, check=False, text=True, capture_output=True)
         if run.returncode != 0:
-            print(run.stderr)
+            # show head/tail to diagnose
+            err = run.stderr or ""
+            head = "\n".join(err.splitlines()[:20])
+            tail = "\n".join(err.splitlines()[-20:])
+            print("\n[ffmpeg stderr — head]\n" + head + "\n")
+            print("[ffmpeg stderr — tail]\n" + tail + "\n")
+            print("[ffmpeg stderr — end]")
             raise RuntimeError(f"ffmpeg failed (code {run.returncode})")
 
-        # atomic move to final name
         out_tmp.replace(out_video)
         print("[done] saved:", out_video)
 
     finally:
         if tmp_path and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception as e:
-                print(f"[warn] could not delete temp ASS: {e}")
+            try: tmp_path.unlink()
+            except Exception as e: print(f"[warn] could not delete temp ASS: {e}")
         if out_tmp.exists():
-            try:
-                out_tmp.unlink()
-            except Exception:
-                pass
+            try: out_tmp.unlink()
+            except Exception: pass
 
-    # Sanity check
     if not out_video.exists():
         raise FileNotFoundError(f"Expected output not found: {out_video}")
-
-    # ---------- 5) Return the full output path ----------
     return out_video.as_posix()

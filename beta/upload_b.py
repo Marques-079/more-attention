@@ -103,18 +103,18 @@ def nz_local_to_rfc3339_utc(dt_local_str: str, tz_name: str = DEFAULT_TZ) -> str
 # ---------------------------
 def upload_video_with_thumbnail(
     video_path: str | os.PathLike,
-    thumbnail_path: str | os.PathLike,
+    thumbnail_path: str | os.PathLike | None = None,   # <— changed
     *,
-    mode: str = "instant",                 # "instant" | "scheduled" | "private"
-    schedule_at_local: str | None = None,  # "YYYY-MM-DD HH:MM" in Pacific/Auckland
+    mode: str = "instant",
+    schedule_at_local: str | None = None,
     title: str = "",
     description: str = "",
-    hashtags_text: str = "",               # e.g., "#AITA #Reddit #Shorts"
-    tags_list: list[str] | None = None,    # non-public tags (not the #hashtags)
-    category_id: str = "24",               # 24 = Entertainment
+    hashtags_text: str = "",
+    tags_list: list[str] | None = None,
+    category_id: str = "24",
     made_for_kids: bool = False,
-    client_secret_file: str = "",          # <-- per-channel
-    token_file: str = "",                  # <-- per-channel
+    client_secret_file: str = "",
+    token_file: str = "",
 ) -> str:
     """
     Uploads a video, sets metadata & thumbnail, and returns the videoId.
@@ -150,11 +150,9 @@ def upload_video_with_thumbnail(
     body = {"snippet": snippet, "status": status}
 
     vpath = Path(video_path)
-    tpath = Path(thumbnail_path)
+    tpath = Path(thumbnail_path) if thumbnail_path else None
     if not vpath.exists():
         raise FileNotFoundError(f"Video not found: {vpath}")
-    if not tpath.exists():
-        raise FileNotFoundError(f"Thumbnail not found: {tpath}")
 
     media = MediaFileUpload(str(vpath), chunksize=CHUNK_SIZE, resumable=True)
     request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -175,11 +173,15 @@ def upload_video_with_thumbnail(
     video_id = response["id"]
     print(f"Upload complete. videoId = {video_id}")
 
-    try:
-        print(f"Setting thumbnail: {tpath.name}")
-        yt.thumbnails().set(videoId=video_id, media_body=str(tpath)).execute()
-    except HttpError as e:
-        print(f"Thumbnail set failed (continuing): {e}")
+    # --- only set a thumbnail if one was provided ---
+    if tpath and tpath.exists():
+        try:
+            print(f"Setting thumbnail: {tpath.name}")
+            yt.thumbnails().set(videoId=video_id, media_body=str(tpath)).execute()
+        except HttpError as e:
+            print(f"Thumbnail set failed (continuing): {e}")
+    else:
+        print("No thumbnail provided; skipping thumbnails.set for this upload.")
 
     return video_id
 

@@ -650,7 +650,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
 
     #Location to drop into time
-    end_x1, end_y1     = 200, 785  
+    end_x1, end_y1     = 96, 745  
     time.sleep(2.0)
     pyautogui.moveTo(452, 231, duration=0.15)  # hover to start
     time.sleep(0.15)
@@ -662,8 +662,8 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     time.sleep(3.0)
     """Check if its asking about resolution"""
-    if area_has_color_match_snipe(936, 532):
-        pyautogui.moveTo(936, 532)
+    if area_has_color_match_snipe(932, 512):
+        pyautogui.moveTo(932, 512)
         time.sleep(1.0)
         pyautogui.leftClick()
     else:
@@ -677,44 +677,50 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     #Pixels 114 -> 5 seconds move around
     time.sleep(2.0)
-    scroll_left_incremental(start=(500, 700), pixels=114 * start_s, steps=start_s, pause=0.0005)
+    scroll_left_incremental(start=(500, 660), pixels=114, steps=start_s, pause=0.0005)
 
     #Crop here wit offset
     time.sleep(2.0)
-    pyautogui.moveTo(213, 637)  # hover to start
+    pyautogui.moveTo(215, 611)  # hover to start
     pyautogui.leftClick()
 
     #Cut 
     time.sleep(2.0)
-    pyautogui.moveTo(214, 707)  # hover to start
+    pyautogui.moveTo(214, 674)  # hover to start
     pyautogui.leftClick()
 
     #Delete
     time.sleep(2.0)
-    pyautogui.moveTo(156, 780)  # hover to start
+    pyautogui.moveTo(156, 735)  # hover to start
+    pyautogui.leftClick()
+    pyautogui.hotkey("backspace")
+
+    #Delete
+    time.sleep(2.0)
+    pyautogui.moveTo(156, 735)  # hover to start
     pyautogui.leftClick()
     pyautogui.hotkey("backspace")
 
     #Reselect clip so we can edit duration -> Reselecting
     time.sleep(1.0)
-    pyautogui.moveTo(122, 781)
+    pyautogui.moveTo(129, 733)
     pyautogui.leftClick()
 
 
     """Adjust duration to fit audio clip"""
 
     #Move to extra options above timeline
-    pyautogui.moveTo(411,604)
+    pyautogui.moveTo(411,575)
     time.sleep(0.3)
     pyautogui.leftClick()
 
     #Click into duration editor
-    pyautogui.moveTo(411,354)
+    pyautogui.moveTo(412,326)
     time.sleep(0.3)
     pyautogui.leftClick()
 
     #Enter time adjustment window
-    pyautogui.moveTo(756, 438)
+    pyautogui.moveTo(747, 416)
     time.sleep(0.3)
     pyautogui.leftClick()
 
@@ -723,7 +729,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
     adjust_clip_duration(audio_duration)
 
     """Rescoll to realign after random clip cropping"""
-    scroll_right_incremental(start=(500, 700), pixels=114 * start_s, steps= math.floor(start_s * 1.2), pause=0.0005)
+    scroll_right_incremental(start=(500, 660), pixels=114 * start_s, steps= math.floor(start_s * 1.2), pause=0.0005)
 
 
     #Move mouse to prject relevant area zone
@@ -736,12 +742,12 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
     time.sleep(2.0)
 
     #clicks open button
-    pyautogui.leftClick(1096, 700)
+    pyautogui.leftClick(1096, 677)
 
     """Add audio clip to timeline"""
-    end_x2, end_y2 = 90, 845
+    end_x2, end_y2 = 99, 794
 
-    pyautogui.moveTo(457, 260, duration=0.2)  # hover to start
+    pyautogui.moveTo(448, 260, duration=0.2)  # hover to start
     time.sleep(0.05)
     pyautogui.mouseDown(button="left")                 # press & hold
     pyautogui.moveTo(end_x2, end_y2, duration=0.25)      # drag while holding
@@ -749,37 +755,39 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     #Mute sound for gameplay background
     time.sleep(2.0)
-    pyautogui.moveTo(46, 793)
+    pyautogui.moveTo(49, 749)
     pyautogui.leftClick()
 
     #SCALE SCREEN FOR SHORTS
     #enter menu
-    pyautogui.moveTo(177,783)
+    pyautogui.moveTo(250,735)
     time.sleep(1.0)
     pyautogui.rightClick()
 
-    pyautogui.moveTo(216, 292)
+    pyautogui.moveTo(288, 292)
     time.sleep(1.0)
     pyautogui.leftClick()
 
-    pyautogui.moveTo(276, 742)
+    #Acces port for ratio
+    pyautogui.moveTo(269, 720)
     time.sleep(1.0)
     pyautogui.leftClick()
 
-    pyautogui.moveTo(252, 548)
+    pyautogui.moveTo(248, 520)
     time.sleep(1.0)
     pyautogui.leftClick()
 
-    pyautogui.moveTo(1223, 798)
+    pyautogui.moveTo(1223, 776)
     time.sleep(1.0)
     pyautogui.leftClick()
 
     #Changing settings for ratios
-    pyautogui.moveTo(1261, 960)
+    pyautogui.moveTo(1261, 910)
     time.sleep(0.5)
     pyautogui.leftClick()
 
-    pyautogui.moveTo(1252, 654)
+    #Troubkemaker line
+    pyautogui.moveTo(1261, 658)
     time.sleep(0.5)
     pyautogui.leftClick()
 
@@ -789,7 +797,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     #Change name
     time.sleep(0.5)
-    pyautogui.moveTo(695, 275)
+    pyautogui.moveTo(716, 251)
     pyautogui.click(clicks=2, interval=0.12, button="left")
     time.sleep(0.5)
     pyautogui.hotkey("command", "a")
@@ -802,24 +810,24 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     #AS navigate pathing for save 
     #/Users/marcus/Downloads/reddit1_filmora_clipstore
-    pyautogui.click(1077,329)
+    pyautogui.click(1077,305)
     time.sleep(0.1)
 
     navigate_open_dialog_to_folder("/Users/marcus/Downloads/reddit1_filmora_clipstore")
 
-    pyautogui.move(1153, 606)
+    pyautogui.move(1153, 583)
     time.sleep(2.0)
-    pyautogui.leftClick(1153, 606) 
+    pyautogui.leftClick(1153, 583) 
 
     #Maximise resolution quality set to high
 
-    pyautogui.moveTo(916, 538)
+    pyautogui.moveTo(916, 519)
     time.sleep(0.5)
-    pyautogui.leftClick(916, 538)
+    pyautogui.leftClick(916, 519)
 
-    pyautogui.moveTo(909, 645)
+    pyautogui.moveTo(912, 619)
     time.sleep(0.5)
-    pyautogui.leftClick(909, 645)
+    pyautogui.leftClick(912, 619)
 
     '''
     Insert here to boost resolution -> Inflates storage
@@ -836,9 +844,9 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
     # pyautogui.click(679, 714)
 
     #Export
-    pyautogui.moveTo(1088, 791)
+    pyautogui.moveTo(1094, 765)
     time.sleep(0.5)
-    pyautogui.leftClick(1088, 791)
+    pyautogui.leftClick(1094, 765)
 
     #Checking until export is finished exporting LOL
     
@@ -851,7 +859,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     time.sleep(pause_wait)
     while True:
-        has_match = area_has_color_match(400, 507)   # saves into ./captures/
+        has_match = area_has_color_match(392, 485)   # saves into ./captures/
 
         print(f"[watch] match={has_match}")
         if has_match:
@@ -859,9 +867,9 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
             continue
         break
 
-    pyautogui.moveTo(359, 243)
+    pyautogui.moveTo(361, 219)
     time.sleep(1.0)
-    pyautogui.leftClick(359, 243)
+    pyautogui.leftClick(361, 219)
 
     #Exit program without saving
     #hit file button
@@ -875,9 +883,9 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
     pyautogui.leftClick(220, 429)
 
     #"Dont save"
-    pyautogui.moveTo(921, 500)
+    pyautogui.moveTo(921, 505)
     time.sleep(0.5)
-    pyautogui.leftClick(921, 525)
+    pyautogui.leftClick(921, 505)
 
 
     return export_title

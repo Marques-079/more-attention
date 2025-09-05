@@ -23,3 +23,23 @@ def compile_audio(text):
     wav_bytes = buf.getvalue()
     print("Audio compiled")
     return wav_bytes, duration_sec
+
+
+def showtime(text: str) -> float:
+    """
+    Return the spoken duration (seconds) for `text` using Kokoro
+    with the same config as compile_audio: lang 'a', voice 'am_adam',
+    speed 1.05, rate 24000. Does not save or play audio.
+    """
+    pipeline = KPipeline(lang_code='a')   # American English
+    voice    = "am_adam"
+    speed    = 1.05
+    rate     = 24000
+
+    total_samples = 0
+    for _, _, audio in pipeline(text, voice=voice, speed=speed):
+        a = np.asarray(audio, dtype=np.float32)
+        total_samples += a.shape[0]
+
+    duration_sec = total_samples / float(rate)
+    return duration_sec

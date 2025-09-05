@@ -3,18 +3,18 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime
-import re, subprocess, json  # NEW: subprocess, json for ffprobe
+import re, subprocess, json 
 import time
 import pyautogui
 
 from editing_b import beta_make_edits
 from script_b import generate_script2
-from voice_b import compile_audio
+from voice_b import compile_audio, showtime
 from captions_b import beta_captions
-from thumbnail_b import generate_thumbnail
+from thumbnail_b import render_black_topleft
 from upload_b import upload_youtube2  # v2 for channel-specific upload
+from first_sentence_b import first_sentence
 
-# --- helper: verify "Shorts rules" on the final rendered file ---
 def assert_is_short_and_vertical(video_path: str, *, max_seconds: int = 180) -> tuple[int, int, float]:
     """
     Ensures the uploaded file will be classified as a Short:
@@ -53,28 +53,73 @@ def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas
 
 print('Operating now...')
 
-TITLE = "[FULL STORY] My Roommate Tried To Ruin My Life, So I Planned A Payback She’ll Never Forget.."
 DESCRIPTION = "\n".join([
     "Daily stories to help with life's emotional damage 🗣🔥🔥",
-    "",
-    "We write original first person dramas inspired by real life.",
-    "We adapt, condense, and sometimes combine elements for pacing. Names and timelines changed.",
-    "Hit play and enjoy.",
-    "",  # keep a blank line before hashtags
     "#Shorts"  # NEW (optional, for discovery)
 ])
-HASHTAGS = "#aita  #reddit #redditstoriesfullstory   #redditconfessions  #relationshipstories   #redditfamilydrama #redditreadings #betrayal #relationshipdrama #Shorts"  # NEW
-TAGS = ["redditfamilydrama", "reddit", "redditrelationship", "shorts"]  # NEW
+HASHTAGS = "#aita  #redditconfessions  #relationshipstories #redditfamilydrama #redditreadings #betrayal #relationshipdrama #Shorts" 
+TAGS = ["redditfamilydrama", "reddit", "redditrelationship", "shorts"]  
 SCHEDULE_AT_LOCAL = None
 MODE = "private"  # switch to "public" when ready
 
 
+#=========#=========#=========#=========#=========#=========#SCRIPT===#=========#=========#=========#=========#=========#=========#=========#=========#=========#========
 
-
+print("Generating script...")
 text = '''
-Throwaway because my IRL circle knows my main, and this is the kind of thing you don’t get to unsay once.
+Ever watch a hundred electricians drink a bar dry in two hours?
+
+I used to run Christmas parties at a golf club.
+Some nights were quiet. Some were chaos.
+This one was a big electrical company after a day on the course.
+
+Problem: no bar package set. No limit. No rules.
+We pause service and check with their managers.
+The CEO strolls in—gold watch, Range Rover at the door—and waves it off.
+Open bar. Everything.
+
+I double-check: any cap, any exclusions?
+He shrugs. Open the whole bar.
+
+So we start pouring.
+Shots line the counter.
+Top-shelf whiskey gets drowned in coke.
+Half-finished $50 drinks pile up on tables like decoration.
+
+Two hours in, the till says ~$20,000.
+We ask if we should stop.
+He starts to panic. Sends everyone home.
+Then he says it isn’t right and he won’t pay.
+
+But we’ve got the order, the receipts, the timestamps.
+He looks wrecked—realizing he approved a free-for-all for a hundred thirsty coworkers.
+
+We close the doors, clear the battlefield of untouched cocktails, and lock the tab.
+Next day, new rule: no open bar without a signed limit—ever again.
 '''
 text = clean_script_text(text)
+thumbnail_sentence = first_sentence(text)
+display_time = showtime(thumbnail_sentence)
+
+TITLE = thumbnail_sentence
+
+
+#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
+
+# Thumbnail
+thumbnail_box_path = render_black_topleft(
+    image_path="/Users/marcus/Downloads/Shorts_thumbv2w.png",
+    text=thumbnail_sentence,
+    box=(40, 235, 1200, 200),              # (x, y, w, h) — the white card area
+    out_dir="/Users/marcus/Downloads/shorts_thumbnails_storage",
+    font_size=70,                         # target “X size”
+    min_font=48,
+    line_spacing=1.42,
+    letter_spacing_px=0,                   # normal spacing
+    space_extra_px=4,                     # widen spaces a bit
+    bold_px=1.55,                             # thickness (0=normal, try 2–4 for bold)
+    # font_path=None,                      # leave None to auto-find Arial
+)
 
 # TTS
 wav_bytes, duration_sec = compile_audio(text)
@@ -87,29 +132,23 @@ file_path.write_bytes(wav_bytes)
 target_dir_audio  = file_path.parent.as_posix()
 target_name_audio = file_path.name
 
-# Build video in Filmora
-export_title = beta_make_edits(1, duration_sec, target_dir_audio, target_name_audio)
+# Build video in Filmora (CHANGE MEDIA)
+export_title = beta_make_edits(9, duration_sec, target_dir_audio, target_name_audio)
 combined_no_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_clipstore/{export_title}.mp4"
 
-# Captions pass
-out = beta_captions(combined_no_captions_path)
-combined_yes_captions_path = out
-
-
-
-
-
-
-
-
-
-# Thumbnail
-thumbnail_script = text[:1000]
-thumbnail_path = generate_thumbnail(
-    template_choice=0, script_text=thumbnail_script,
-    font_size=46, line_spacing_px=6, font_weight="bold",
-    thickness_px=0.5, use_ellipsis=True
+#Captions with thumbnail
+combined_yes_captions_path = beta_captions(
+    combined_no_captions_path,
+    intro_card_src=thumbnail_box_path,
+    intro_secs=display_time - 0.3,
+    intro_fade=0.1,
+    intro_scale=0.80,
+    intro_crop_bottom=0.25,
+    intro_offset_x=0,
+    intro_offset_y=0,
+    intro_round_px=45
 )
+
 
 # --- NEW: verify the final render qualifies as a Short ---
 w, h, dur = assert_is_short_and_vertical(combined_yes_captions_path, max_seconds=180)  # keep 60 if you prefer stricter
@@ -117,18 +156,18 @@ print(f"Final render: {w}x{h}, {dur:.2f}s -> OK for Shorts.")
 
 res = input("Upload to yt?")
 # --- Upload (uncomment when ready) ---
-if res:
+if res == 'y':
     upload_youtube2(
-        combined_yes_captions_path,
-        thumbnail_path,
-        TITLE,
-        DESCRIPTION,
-        HASHTAGS,
-        TAGS,
-        MODE,
-        SCHEDULE_AT_LOCAL,
+        VIDEO_PATH = combined_yes_captions_path,
+        THUMB_PATH = None,
+        TITLE = TITLE,
+        DESCRIPTION = DESCRIPTION,
+        HASHTAGS = HASHTAGS,
+        TAGS = TAGS,
+        MODE = MODE,
+        SCHEDULE_AT_LOCAL = SCHEDULE_AT_LOCAL,
         channel_api_json="whatreallyhappened.json"
     )
-    print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
+    print("SENT WOOSH")
 else:
     print("Skipped upload.")
