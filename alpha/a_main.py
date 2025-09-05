@@ -30,10 +30,10 @@ print('Operating now...')
 #text = generate_script2("At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Apart…")
 
 # ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
-TITLE = "[FULL STORY] My Sister Said She “Needed Space” From Me—But I Found Out She Moved In With My Ex."
+TITLE = "[FULL STORY] My Wife Said She Was “Working Late,” But Her Car GPS Led Me to Another Man’s House"
 
 DESCRIPTION = "\n".join([
-    "Stories sharper than Gordon Ramsay’s insults 👨‍🍳🔪💀",
+    "Stories with more heat than a microwave burrito 🌯🔥",
     "",
     "",
     "We write original first person dramas inspired by real life "
@@ -49,8 +49,9 @@ SCHEDULE_AT_LOCAL = None #"2025-09-04 19:30"
 MODE = "private"
 #=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
 
+print("Generating script...")
 #MOC SCRIPT CALL
-with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/5text.txt", "r", encoding="utf-8") as f:
+with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts/6text.txt", "r", encoding="utf-8") as f:
   text = f.read()
 
 # text = '''
@@ -58,6 +59,7 @@ with open("/Users/marcus/Documents/GitHub/more-attention/app/scripts/gen_scripts
 
 text = clean_script_text(text)
 
+print("Getting audio...")
 #Convert text to speech (audio wav + duration seconds)
 wav_bytes, duration_sec = compile_audio(text)
 
@@ -73,6 +75,7 @@ target_name_audio = file_path.name               # e.g. "voice_20250902_141530.w
 
 #print(target_name_audio)
 
+print("Making edits")
 export_title = make_edits(7, duration_sec, target_dir_audio, target_name_audio) #Number indicates what background to use
 
 #print(export_title)
