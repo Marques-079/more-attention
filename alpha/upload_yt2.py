@@ -8,6 +8,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo  # Python 3.9+
 from pathlib import Path
 import os
+from google.auth.transport.requests import Request
 
 # ---------------------------
 # CONFIG (paths + OAuth)
@@ -15,7 +16,7 @@ import os
 
 # Folder that contains your different channel OAuth JSON files
 # (same place where "whatreallyhappened.json" already lives)
-YT_API_DIR = (Path.cwd().parents[2] / "Github" / "more-attention" / "yt_apis") #============================= note: I rmeoved / "Documents" to avoid double up pathing if error check HERE
+YT_API_DIR = (Path.cwd().parents[2] / "GitHub" / "more-attention" / "yt_apis") #============================= note: I rmeoved / "Documents" to avoid double up pathing if error check HERE
 
 # Where to store OAuth tokens (one per channel)
 TOKEN_DIR = Path.cwd() / "tokens"
@@ -61,23 +62,29 @@ def resolve_channel_credentials(channel_api_json: str) -> tuple[str, str]:
 # Auth helper (parameterized)
 # ---------------------------
 def get_youtube_service(client_secret_file: str, token_file: str):
-    """Authenticate and return an authorized YouTube API client for the given channel."""
     creds = None
     if Path(token_file).exists():
         try:
             creds = Credentials.from_authorized_user_file(token_file, SCOPES)
-        except Exception:
+        except Exception as e:
+            print("Failed to load token:", e)
             creds = None
 
+    # If creds are invalid/expired
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
-        # Opens a local server to complete OAuth
-        creds = flow.run_local_server(port=0)
+        if creds and creds.expired and creds.refresh_token:
+            # 🔥 silently refresh instead of opening browser
+            creds.refresh(Request())
+        else:
+            # fallback: first-time login
+            flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
+            creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
+
+        # Always save refreshed/new creds
         with open(token_file, "w", encoding="utf-8") as f:
             f.write(creds.to_json())
 
     return build("youtube", "v3", credentials=creds)
-
 
 # ---------------------------
 # Time helpers

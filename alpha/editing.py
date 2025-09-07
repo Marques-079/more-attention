@@ -1,15 +1,23 @@
+print('0')
 #!/usr/bin/env python3
 import subprocess
+print("1")
 import time
+print("2")
 import psutil
+print("3")
 from pathlib import Path
+print('4')
 import pyautogui
 import platform
 import math
+print('5')
 import re
 from datetime import datetime
 import math, random
+print('6')
 from typing import Optional, Tuple
+
 
 
 clip_store = {
@@ -396,7 +404,6 @@ def scroll_right_incremental(start=(500, 700), pixels=114, steps=5, pause=0.01):
 
 #==========================================================================================================================================
 
-
 def _as_escape(s: str) -> str:
     """Escape a string for embedding inside AppleScript quotes."""
     return s.replace("\\", "\\\\").replace('"', '\\"')
@@ -654,6 +661,8 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
     else:
         pass
 
+    
+    #551, (522, 583)
     """Shift edit lines"""
     end_x1, end_y1     = 522, 577  
     time.sleep(2.0)
@@ -663,6 +672,7 @@ def make_edits(background_reddit1, audio_duration, target_dir_audio, target_name
     pyautogui.moveTo(end_x1, end_y1, duration=0.25)
     time.sleep(0.15)      # drag while holding
     pyautogui.mouseUp(button="left")  
+    
 
     "Random cropping to starttime + offset"
     rng = random.SystemRandom()

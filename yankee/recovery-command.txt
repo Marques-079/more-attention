@@ -1,0 +1,73 @@
+ZIP=~/Desktop/$(ls -t ~/Desktop/more-attention_*.zip | head -n1 | xargs -n1 basename)
+DEST="$HOME/Restore_more-attention_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$DEST"
+cd "$DEST"
+unzip -q "$ZIP"
+cd more-attention
+bash .backup/restore.sh
+
+
+v2 alpha pipeline
+# Create a script that finds your latest backup ZIP, reveals it, copies it,
+# verifies it, and restores it (including .venv). Then run it.
+
+cat > ~/retrieve_latest_backup.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_NAME="more-attention"                      # change if your folder name differs
+BACKUP_DIR="$HOME/Backups/$REPO_NAME"
+
+# 1) Find the newest backup zip
+LATEST_ZIP="$(ls -t "$BACKUP_DIR"/*.zip 2>/dev/null | head -n1 || true)"
+if [[ -z "${LATEST_ZIP:-}" ]]; then
+  echo "No backup zips found in $BACKUP_DIR"
+  exit 1
+fi
+echo "Latest backup: $LATEST_ZIP"
+
+# 2) Reveal it in Finder and copy to Desktop
+open -R "$LATEST_ZIP" || true
+DEST_ZIP="$HOME/Desktop/$(basename "$LATEST_ZIP")"
+cp -f "$LATEST_ZIP" "$DEST_ZIP"
+
+# 3) Verify integrity + show size
+unzip -tqq "$DEST_ZIP"
+(md5 "$DEST_ZIP" 2>/dev/null || md5sum "$DEST_ZIP" 2>/dev/null || true)
+ls -lh "$DEST_ZIP"
+
+# 4) Restore to ~/Restore/<timestamp>/
+STAMP="$(date +"%Y-%m-%d_%H-%M")"
+RESTORE_ROOT="$HOME/Restore/${REPO_NAME}-restore-$STAMP"
+mkdir -p "$RESTORE_ROOT"
+unzip -q "$DEST_ZIP" -d "$RESTORE_ROOT"
+RESTORE_DIR="$RESTORE_ROOT/$REPO_NAME"
+echo "Restored to: $RESTORE_DIR"
+
+# 5) Try to activate the restored venv (if relocatable)
+if [[ -f "$RESTORE_DIR/.venv/bin/activate" ]]; then
+  set +e
+  . "$RESTORE_DIR/.venv/bin/activate"
+  python -V || true
+  deactivate || true
+  set -e
+fi
+
+# 6) If the venv isn't usable, rebuild it from requirements (if present)
+if [[ ! -x "$RESTORE_DIR/.venv/bin/python" ]]; then
+  echo "Rebuilding venv from requirements (if present)..."
+  cd "$RESTORE_DIR"
+  python3 -m venv .venv
+  . .venv/bin/activate
+  REQ="$(ls -t requirements-*.txt 2>/dev/null | head -n1 || true)"
+  if [[ -n "${REQ:-}" ]]; then
+    pip install -r "$REQ"
+  fi
+  python -V
+fi
+
+echo "Done."
+BASH
+
+chmod +x ~/retrieve_latest_backup.sh
+~/retrieve_latest_backup.sh
