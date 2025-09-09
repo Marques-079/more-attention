@@ -2,6 +2,7 @@
 .env
 /captures
 /yt_apis
+/.backup
 
 
 Old key for YoutubeAPI -> Web app misselect

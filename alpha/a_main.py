@@ -30,7 +30,6 @@ print("Imported captions and thumbnail")
 from alpha.upload_yt2 import upload_youtube2 #<---- v2 for channel specific upload. .json must be in yt_apis folder
 print("Imported youtube upload")
 
-
 def run_alpha(topic, setting="private", schedule_time=None):
     def clean_script_text(text: str, *, replace_commas=True, preserve_numeric_commas=True) -> str:
         

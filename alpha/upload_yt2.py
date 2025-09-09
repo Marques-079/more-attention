@@ -16,7 +16,7 @@ from google.auth.transport.requests import Request
 
 # Folder that contains your different channel OAuth JSON files
 # (same place where "whatreallyhappened.json" already lives)
-YT_API_DIR = (Path.cwd().parents[2] / "GitHub" / "more-attention" / "yt_apis") #============================= note: I rmeoved / "Documents" to avoid double up pathing if error check HERE
+YT_API_DIR = (Path.cwd().parents[2] / "Documents" /  "GitHub" / "more-attention" / "yt_apis") #============================= note: I rmeoved / "Documents" to avoid double up pathing if error check HERE
 
 # Where to store OAuth tokens (one per channel)
 TOKEN_DIR = Path.cwd() / "tokens"

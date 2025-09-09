@@ -17,4 +17,4 @@ mode = "private"
 #Topic on what to make vid on
 topic = "I Found My Dad’s Secret Second Family. nd They Knew About Me All Along"
 
-run_alpha(topic, setting=mode, schedlue_time=schedule_time)
+run_alpha(topic, setting=mode, schedule_time=schedule_time)
