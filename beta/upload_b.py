@@ -4,10 +4,12 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from datetime import datetime
 from zoneinfo import ZoneInfo  # Python 3.9+
 from pathlib import Path
 import os
+import json
 
 # ---------------------------
 # CONFIG (paths + OAuth)
@@ -15,8 +17,7 @@ import os
 
 # Folder that contains your different channel OAuth JSON files
 # (same place where "whatreallyhappened.json" already lives)
-YT_API_DIR = (Path.cwd().parents[2] /
-              "Documents" / "Github" / "more-attention" / "yt_apis")
+YT_API_DIR = (Path.cwd().parents[2] / "Documents" / "GitHub" / "more-attention" / "yt_apis")
 
 # Where to store OAuth tokens (one per channel)
 TOKEN_DIR = Path.cwd() / "tokens"
@@ -61,21 +62,52 @@ def resolve_channel_credentials(channel_api_json: str) -> tuple[str, str]:
 # ---------------------------
 # Auth helper (parameterized)
 # ---------------------------
-def get_youtube_service(client_secret_file: str, token_file: str):
-    """Authenticate and return an authorized YouTube API client for the given channel."""
-    creds = None
-    if Path(token_file).exists():
-        try:
-            creds = Credentials.from_authorized_user_file(token_file, SCOPES)
-        except Exception:
-            creds = None
+def _load_creds_from_file(token_file: str) -> Credentials | None:
+    """Robust token loader that tolerates truncated/invalid JSON."""
+    try:
+        if not Path(token_file).exists():
+            return None
+        # Quick JSON sanity check before letting google-auth parse it
+        with open(token_file, "r", encoding="utf-8") as f:
+            json.load(f)
+        return Credentials.from_authorized_user_file(token_file, SCOPES)
+    except Exception:
+        return None
 
+def _save_creds(creds: Credentials, token_file: str) -> None:
+    with open(token_file, "w", encoding="utf-8") as f:
+        f.write(creds.to_json())
+
+def _do_interactive_consent(client_secret_file: str) -> Credentials:
+    # One-time interactive grant to obtain a refresh_token for future silent refreshes
+    flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
+    # access_type="offline" + prompt="consent" ensures refresh_token is issued
+    return flow.run_local_server(port=0, access_type="offline", prompt="consent")
+
+def get_youtube_service(client_secret_file: str, token_file: str):
+    """
+    Returns an authorized YouTube API client, refreshing tokens silently when possible.
+    Falls back to a one-time interactive OAuth if no valid refresh path exists.
+    """
+    creds = _load_creds_from_file(token_file)
+
+    # If no creds or not valid, try to refresh or re-auth.
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
-        # Opens a local server to complete OAuth
-        creds = flow.run_local_server(port=0)
-        with open(token_file, "w", encoding="utf-8") as f:
-            f.write(creds.to_json())
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())  # silent refresh
+            except Exception:
+                # If refresh fails (e.g., invalid_grant), discard and re-consent
+                try:
+                    Path(token_file).unlink(missing_ok=True)
+                except Exception:
+                    pass
+                creds = _do_interactive_consent(client_secret_file)
+        else:
+            # First-time or missing refresh_token → one-time interactive consent
+            creds = _do_interactive_consent(client_secret_file)
+
+        _save_creds(creds, token_file)
 
     return build("youtube", "v3", credentials=creds)
 
@@ -103,7 +135,7 @@ def nz_local_to_rfc3339_utc(dt_local_str: str, tz_name: str = DEFAULT_TZ) -> str
 # ---------------------------
 def upload_video_with_thumbnail(
     video_path: str | os.PathLike,
-    thumbnail_path: str | os.PathLike | None = None,   # <— changed
+    thumbnail_path: str | os.PathLike | None = None,   # optional thumbnail
     *,
     mode: str = "instant",
     schedule_at_local: str | None = None,

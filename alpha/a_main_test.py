@@ -17,17 +17,17 @@ from pathlib import Path
 from datetime import datetime
 import re
 print('Base imports done...')
-from alpha.editing import make_edits
+from editing import make_edits
 print("Imported editing")
 #from script import generate_script2
 print("Imported script")
-from alpha.voice import compile_audio
+from voice import compile_audio
 print("Imported voice")
-from alpha.captions import build_mrbeast_captions
-from alpha.thumbnail import generate_thumbnail
+from captions import build_mrbeast_captions
+from thumbnail import generate_thumbnail
 print("Imported captions and thumbnail")
 #from upload_yt import upload_youtube
-from alpha.upload_yt2 import upload_youtube2 #<---- v2 for channel specific upload. .json must be in yt_apis folder
+from upload_yt2 import upload_youtube2 #<---- v2 for channel specific upload. .json must be in yt_apis folder
 print("Imported youtube upload")
 
 def run_alpha(topic, setting="private", schedule_time=None):
@@ -48,29 +48,14 @@ def run_alpha(topic, setting="private", schedule_time=None):
         return s
     print('Operating now...')
 
-    """Activate script building"""
-    #text = generate_script2("At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Apart…")
-
-    from openai import OpenAI
-    client = OpenAI()
-
-    chat = client.chat.completions.create(
-        model="gpt-5",
-        messages=[
-            {"role": "system", "content": "An overworked, underappreciated adult child or partner, writing in a confessional, vindicated tone, trying to prove they were right to strangers online while venting about betrayal, manipulation, or entitlement. Should onlu use plain english/text formatting conventiosn avoid bulletpoints. Jump straight into the story line no need for the reddit introduction. Try to avoid using complex time formarts. Story telling should be simple and striaght forwrad so a 6th grader can understand and follow the story"},
-            {"role": "user", "content": f"Generate a 2000 word reddit styled story (with rich punctuation for text to speech models to pick up on) from the person venting's point of view story following the prompt: {topic}"} 
-        ],
-    )
-    text = chat.choices[0].message.content
-    print(text)
-
+    text = "At My Grandma’s Will Reading, My Aunt Whispered, “You Were Always Her Favorite. Not For Long.” Weeks Later, The Truth Burned Our Family Aparn testing testin"
 
     # ======  TITLE / DESCRIPTION / HASHTAGS HERE ===#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========#=========
     TITLE = f"{topic}"
     TITLE = TITLE[:100]  # Youtube title limit
 
     DESCRIPTION = "\n".join([
-        "Stories sharper than Gordon Ramsay’s insults 👨‍🍳🔪💀",
+        "Stories that slap harder than your alarm at 6AM ⏰😵",
         "",
         "",
         "We write original first person dramas inspired by real life "
@@ -129,32 +114,35 @@ def run_alpha(topic, setting="private", schedule_time=None):
     print(f"This is thumbnail path {thumbnail_path}, This is video path {combined_yes_captions_path}")
 
     #Auto upload.
-    upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
+    #upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
 
     print('COMPLETED')
     return 
 
-
-    '''Double checking before uploading logic'''
-    # post_youtube = input("Do you want to post this to Youtube using API?")
-
-    # if post_youtube.lower() == "y":
-    #     #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
-
-    #     #Channel specific v2 of upload function 
-    #     upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
-    # else:
-    #     print("Not uploading to YouTube.")
-    #     pass
+run_alpha("Tester tester", setting="private", schedule_time=None)
 
 
-    #TODO 
-    '''
-    Finalised prompts for script generation and idea gathering prawn?
+'''Double checking before uploading logic'''
+# post_youtube = input("Do you want to post this to Youtube using API?")
 
-    Many channels -> niches? 
+# if post_youtube.lower() == "y":
+#     #upload_youtube(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL)
 
-    shorts pipeline too
-    '''
+#     #Channel specific v2 of upload function 
+#     upload_youtube2(combined_yes_captions_path, thumbnail_path, TITLE, DESCRIPTION, HASHTAGS, TAGS, MODE, SCHEDULE_AT_LOCAL, channel_api_json="whatreallyhappened.json")
+# else:
+#     print("Not uploading to YouTube.")
+#     pass
+
+
+#TODO 
+'''
+Finalised prompts for script generation and idea gathering prawn?
+
+Many channels -> niches? 
+
+shorts pipeline too
+'''
+
 
     

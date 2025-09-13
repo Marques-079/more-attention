@@ -30,7 +30,8 @@ clip_store = {
     12 : ("satisfying3.mp4", 180),
     13 : ("mobile_games1.mp4", 1426),
     14 : ("snowboarding1.mp4", 626),
-    15 : ("ski1.mp4", 868)
+    15 : ("ski1.mp4", 868),
+    16 : ("mega_showreel.mp4", 3783)
 }
 
 APP_PATH = "/Applications/Wondershare Filmora Mac.app"
@@ -295,7 +296,7 @@ def area_has_color_match(x: int, y: int,
 def pick_random_crop_start(
     duration: float,
     clip_total: float,
-    buffer_s: float = 60.0,
+    buffer_s: float = 10 * 60.0,
     integer_seconds: bool = False,
     rng: Optional[random.Random] = None,
 ) -> Tuple[float, str]:
@@ -760,7 +761,7 @@ def beta_make_edits(background_reddit1, audio_duration, target_dir_audio, target
 
     #SCALE SCREEN FOR SHORTS
     #enter menu
-    pyautogui.moveTo(250,735)
+    pyautogui.moveTo(155,735)
     time.sleep(1.0)
     pyautogui.rightClick()
 

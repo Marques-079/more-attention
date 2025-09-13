@@ -67,35 +67,21 @@ MODE = "private"  # switch to "public" when ready
 
 print("Generating script...")
 text = '''
-Ever watch a hundred electricians drink a bar dry in two hours?
+What was the best prank someone ever pulled on you?
+Highschool. Junior Year. First day of class. Teacher walks in, it's an older wrinkly guy with a stache. A little weird looking. His shirt is only tucked in on one side. Every one is just getting the wrong vibe from this guy. Like, he's not all there in the head. He's got a manic look in his eyes. He's creepy.
 
-I used to run Christmas parties at a golf club.
-Some nights were quiet. Some were chaos.
-This one was a big electrical company after a day on the course.
+He starts going through attendance, not looking up the whole time. Then he gets to my name. Starts to say it, then stops. Looks up, scans the room, looks directly at me. "Ah, Mr. John, I'm glad you're here. How's your family? Is your little sister still playing the piano? Is that model ship still on your dresser? Is your room still blue?"
 
-Problem: no bar package set. No limit. No rules.
-We pause service and check with their managers.
-The CEO strolls in—gold watch, Range Rover at the door—and waves it off.
-Open bar. Everything.
+I'm shocked, mortified. I can't find the words to respond, this creeper has just described my family, and the flippin room I sleep in at night.
 
-I double-check: any cap, any exclusions?
-He shrugs. Open the whole bar.
+"Ah, of course it is, it's only been what? A week?"
 
-So we start pouring.
-Shots line the counter.
-Top-shelf whiskey gets drowned in coke.
-Half-finished $50 drinks pile up on tables like decoration.
+Then he goes back to attendance. Panics were had that day.
 
-Two hours in, the till says ~$20,000.
-We ask if we should stop.
-He starts to panic. Sends everyone home.
-Then he says it isn’t right and he won’t pay.
+But anyway, the next day I find out the old crazy guy is my uncles best friend, and they and my dad decided to pull a prank on me for my first day. The teacher wasn't so crazy looking the rest of the year, he shaved the creepy stache (which he grew specifically for the prank, apparently), dressed better, stopped making his eye twitch, etc.
 
-But we’ve got the order, the receipts, the timestamps.
-He looks wrecked—realizing he approved a free-for-all for a hundred thirsty coworkers.
+I have to admit, it was a good prank, even if I was terrified of being murdered for a day or two.
 
-We close the doors, clear the battlefield of untouched cocktails, and lock the tab.
-Next day, new rule: no open bar without a signed limit—ever again.
 '''
 text = clean_script_text(text)
 thumbnail_sentence = first_sentence(text)
@@ -112,12 +98,12 @@ thumbnail_box_path = render_black_topleft(
     text=thumbnail_sentence,
     box=(40, 235, 1200, 200),              # (x, y, w, h) — the white card area
     out_dir="/Users/marcus/Downloads/shorts_thumbnails_storage",
-    font_size=70,                         # target “X size”
+    font_size=71,                         # target “X size”
     min_font=48,
     line_spacing=1.42,
     letter_spacing_px=0,                   # normal spacing
     space_extra_px=4,                     # widen spaces a bit
-    bold_px=1.55,                             # thickness (0=normal, try 2–4 for bold)
+    bold_px=1.8,                             # thickness (0=normal, try 2–4 for bold)
     # font_path=None,                      # leave None to auto-find Arial
 )
 
@@ -133,14 +119,14 @@ target_dir_audio  = file_path.parent.as_posix()
 target_name_audio = file_path.name
 
 # Build video in Filmora (CHANGE MEDIA)
-export_title = beta_make_edits(9, duration_sec, target_dir_audio, target_name_audio)
+export_title = beta_make_edits(16, duration_sec, target_dir_audio, target_name_audio)
 combined_no_captions_path = f"/Users/marcus/Downloads/reddit1_filmora_clipstore/{export_title}.mp4"
 
 #Captions with thumbnail
 combined_yes_captions_path = beta_captions(
     combined_no_captions_path,
     intro_card_src=thumbnail_box_path,
-    intro_secs=display_time - 0.3,
+    intro_secs=display_time ,
     intro_fade=0.1,
     intro_scale=0.80,
     intro_crop_bottom=0.25,
@@ -154,20 +140,18 @@ combined_yes_captions_path = beta_captions(
 w, h, dur = assert_is_short_and_vertical(combined_yes_captions_path, max_seconds=180)  # keep 60 if you prefer stricter
 print(f"Final render: {w}x{h}, {dur:.2f}s -> OK for Shorts.")
 
-res = input("Upload to yt?")
 # --- Upload (uncomment when ready) ---
-if res == 'y':
-    upload_youtube2(
-        VIDEO_PATH = combined_yes_captions_path,
-        THUMB_PATH = None,
-        TITLE = TITLE,
-        DESCRIPTION = DESCRIPTION,
-        HASHTAGS = HASHTAGS,
-        TAGS = TAGS,
-        MODE = MODE,
-        SCHEDULE_AT_LOCAL = SCHEDULE_AT_LOCAL,
-        channel_api_json="whatreallyhappened.json"
-    )
-    print("SENT WOOSH")
-else:
-    print("Skipped upload.")
+
+upload_youtube2(
+    VIDEO_PATH = combined_yes_captions_path,
+    THUMB_PATH = None,
+    TITLE = TITLE,
+    DESCRIPTION = DESCRIPTION,
+    HASHTAGS = HASHTAGS,
+    TAGS = TAGS,
+    MODE = MODE,
+    SCHEDULE_AT_LOCAL = SCHEDULE_AT_LOCAL,
+    channel_api_json="whatreallyhappened.json"
+)
+print("SENT WOOSH")
+
