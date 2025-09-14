@@ -3,6 +3,15 @@
 /captures
 /yt_apis
 /.backup
+token.json
+video_histroy.txt
+videos_addons.txt
+import_openai.log
+kokoro_impport.log
+/tokens
+/yankee
+
+
 
 
 Old key for YoutubeAPI -> Web app misselect
