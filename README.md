@@ -15,8 +15,9 @@ Opensource software really came in clutch for this project using Kokoros 82 mill
 These workarounds LEGALLY generate results comparable to paid software like ElevenLabs and Filmora's in house autocaptions (costs money for tokens) 
 
 ---
-Below is a gif of the editing proccess 
+# Editing warmup with an Example video 
 
+p.s. Sorry for bad quality but I had to quantize the heck out of the screen recording 💀 
 <p align="left">
   <img src="https://github.com/Marques-079/more-attention/blob/72f80ae79793b5626e3ff5acf8b8a2745e5362c9/app/ezgif.com-optimize.gif"
        width="1000"  alt="gif1">
