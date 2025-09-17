@@ -30,48 +30,48 @@ P.S. Sorry for bad quality but I had to quantize the heck out of the screen reco
 
 ---
 
+ ```text
 Idea sources ─┬─> Script (OpenAI JSON schema)
               ├─> Voice (Kokoro TTS)
               ├─> Thumbnail (template engine)
               └─> Edit & Export (Filmora automation)
                            └─> Subtitles (ASR + burn-in)
                                    └─> YouTube API (upload/schedule)
+```
 
+- **Script (OpenAI JSON schema)**<br>
+  &emsp;**Tech:** OpenAI w/ JSON schema (Pydantic), prompt versions pinned<br>
+  &emsp;**Implementation:** LLM returns validated JSON (title, beats, VO, thumb text, metadata); auto-repair on parse errors<br>
+  &emsp;**Cost:** > 0.01 cents – 0.08 cents (NZD)
 
-• Script (OpenAI JSON schema) : 
-    Tech : OpenAI w/ JSON schema (Pydantic), prompt versions pinned
-    Implementation : LLM returns validated JSON (title, beats, VO, thumb text, metadata); auto-repair on parse errors
-    Cost : > 0.01 cents - 0.08 cents (NZD)
-    
-• Voice (Kokoro TTS): 
-    Tech : Kokoro TTS, SSML, WAV concat, LUFS normalization
-    Implementation : Paragraph chunks → synthesize → normalize to ~-16 LUFS → join → runs/<id>/audio.wav
-    Cost : Free (Apache-2.0 licensing)
-    
-• Thumbnail (template engine) : 
-    Tech : Pillow (dynamic text fitting), safe margins, extraction from script
-    Implementation : Apply template + binary-search font size → export high-DPI PNG → optional A/B variants
-    Cost : Free (MIT licensing)
-    
-• Edit & Export (Filmora automation) : 
-    Tech : Filmora 14 via AppleScript; ffmpeg fallback
-    Implementation : Import VO + assets → place to VO timestamps → apply captions/style → export MP4 (9:16 or 16:9)
-    Cost : $40 dollars p/a
-    
-    
-• Subtitles (ASR + burn-in): 
-    Tech : LLM script timings or Whisper ASR check; SRT/VTT; ffmpeg burn over
-    Implementation : Generate SRT → style → burn-in to final MP4; also keep sidecar captions
-    Cost : Free (MIT licensing)
+- **Voice (Kokoro TTS)**<br>
+  &emsp;**Tech:** Kokoro TTS, SSML, WAV concat, LUFS normalization<br>
+  &emsp;**Implementation:** Paragraph chunks → synthesize → normalize to ~-16 LUFS → join → `runs/<id>/audio.wav`<br>
+  &emsp;**Cost:** Free (Apache-2.0 licensing)
 
-• YouTube API (upload/schedule): 
-    Tech : Google API client, OAuth per channel
-    Implementation : Upload video + thumbnail → set title/desc/tags/visibility → schedule in local TZ
-    Cost : Free (Apache-2.0 licensing)
+- **Thumbnail (template engine)**<br>
+  &emsp;**Tech:** Pillow (dynamic text fitting), safe margins, extraction from script<br>
+  &emsp;**Implementation:** Apply template + binary-search font size → export high-DPI PNG → optional A/B variants<br>
+  &emsp;**Cost:** Free (MIT licensing)
 
-Total fixed cost: $40
-Total variable costs : Dependant of video
-                                   
+- **Edit & Export (Filmora automation)**<br>
+  &emsp;**Tech:** Filmora 14 via AppleScript; ffmpeg fallback<br>
+  &emsp;**Implementation:** Import VO + assets → place to VO timestamps → apply captions/style → export MP4 (9:16 or 16:9)<br>
+  &emsp;**Cost:** $40 p/a
+
+- **Subtitles (ASR + burn-in)**<br>
+  &emsp;**Tech:** LLM script timings or Whisper ASR check; SRT/VTT; ffmpeg burn-in<br>
+  &emsp;**Implementation:** Generate SRT → style → burn-in to final MP4; also keep sidecar captions<br>
+  &emsp;**Cost:** Free (MIT licensing)
+
+- **YouTube API (upload/schedule)**<br>
+  &emsp;**Tech:** Google API client, OAuth per channel<br>
+  &emsp;**Implementation:** Upload video + thumbnail → set title/desc/tags/visibility → schedule in local TZ<br>
+  &emsp;**Cost:** Free (Apache-2.0 licensing)
+
+**Total fixed cost:** $40  
+**Total variable costs:** Dependent on video
+
 
 ---
 
