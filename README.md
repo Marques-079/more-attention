@@ -23,4 +23,11 @@ p.s. Sorry for bad quality but I had to quantize the heck out of the screen reco
        width="1000"  alt="gif1">
 </p>
 
+Here is an example using stock video and a fake script
+<p align="left">
+  <img src="https://github.com/Marques-079/more-attention/blob/803b67ae4d2323c0dfba2cdc875775ec26d66f6a/app/Demo1-moreatt1-ezgif.com-gif-maker.mp4"
+       width="1000"  alt="gif1">
+</p>
+
+
 
